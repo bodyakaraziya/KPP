@@ -12,8 +12,8 @@ class AuthBackground extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Фонове фото туманного лісу та водойми
-          Image.network(
-            'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+          Image.asset(
+            'assets/images/tuman_forest.avif',
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return Container(
@@ -39,6 +39,7 @@ class AuthBackground extends StatelessWidget {
 
           // Контент: Логотип у шапці + Біла картка форми
           SafeArea(
+            bottom: false,
             child: CustomScrollView(
               slivers: [
                 SliverFillRemaining(

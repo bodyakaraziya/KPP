@@ -790,11 +790,11 @@ class _AddTripScreenState extends State<AddTripScreen> {
   void _showPickFishPhotoDialog(BuildContext context) {
     // Demo photos for fish (using the same Unsplash photos as placeholder)
     const List<String> _demoFishPhotos = [
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
+      'assets/images/tuman_forest.avif',
+      'assets/images/lis.avif',
+      'assets/images/gory.avif',
+      'assets/images/okean_susha.avif',
+      'assets/images/pid_vodoy.avif'
     ];
 
     showDialog(
@@ -899,7 +899,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
+                        child: Image.asset(
                           url,
                           width: 82,
                           height: 82,

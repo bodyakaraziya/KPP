@@ -50,7 +50,7 @@ class TripCard extends StatelessWidget {
             children: [
               // Background image with error handling
               Positioned.fill(
-                child: Image.network(
+                child: Image.asset(
                   imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(

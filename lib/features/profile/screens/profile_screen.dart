@@ -22,8 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _phone = '+380 68 97 09 647';
 
   // Обране фото аватара (null = відображається кружечок з ініціалом)
-  String? _selectedAvatarUrl =
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
+  String? _selectedAvatar = 'assets/images/gory.avif';
 
   // Стани розкриття секцій та редагування
   bool _isPersonalExpanded = false;
@@ -43,11 +42,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 5 демо-фотографій для діалогу "Вибрати фото" відповідно до макета Figma
   static const List<String> _demoPhotos = [
-    'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
+    'assets/images/tuman_forest.avif',
+    'assets/images/lis.avif',
+    'assets/images/gory.avif',
+    'assets/images/okean_susha.avif',
+    'assets/images/pid_vodoy.avif'
   ];
 
   @override
@@ -345,22 +344,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: ClipOval(
-                        child: _selectedAvatarUrl != null
-                            ? Image.network(
-                                _selectedAvatarUrl!,
+                        child: _selectedAvatar != null
+                            ? Image.asset(
+                                _selectedAvatar!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  color: AppColors.lightAmberBg,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _initial,
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.accentAmber,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      color: AppColors.lightAmberBg,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        _initial,
+                                        style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.accentAmber,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
                               )
                             : Container(
                                 color: AppColors.lightAmberBg,
@@ -374,7 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                               ),
-                      ),
+                      )
                     ),
                     Positioned(
                       right: 0,
@@ -1283,7 +1283,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: TextButton.icon(
                         onPressed: () {
-                          setState(() => _selectedAvatarUrl = null);
+                          setState(() => _selectedAvatar = null);
                           Navigator.pop(ctx);
                         },
                         style: TextButton.styleFrom(
@@ -1308,7 +1308,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: TextButton.icon(
                         onPressed: () {
-                          setState(() => _selectedAvatarUrl = _demoPhotos[0]);
+                          setState(() => _selectedAvatar = _demoPhotos[0]);
                           Navigator.pop(ctx);
                         },
                         style: TextButton.styleFrom(
@@ -1339,12 +1339,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: _demoPhotos.map((url) {
                     return GestureDetector(
                       onTap: () {
-                        setState(() => _selectedAvatarUrl = url);
+                        setState(() => _selectedAvatar = url);
                         Navigator.pop(ctx);
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
+                        child: Image.asset(
                           url,
                           width: 82,
                           height: 82,
@@ -1355,7 +1355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Colors.grey[300],
                             alignment: Alignment.center,
                             child: Icon(
-                              Icons.image,
+                              Icons.image_not_supported_outlined,
                               size: 28,
                               color: Colors.grey[600],
                             ),
@@ -1365,6 +1365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   }).toList(),
                 ),
+
                 const SizedBox(height: 18),
 
                 Align(
@@ -1471,7 +1472,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           decoration: InputDecoration(
             hintText: hintText,
-            labelText: labelText,
             hintStyle: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w400,
@@ -1485,11 +1485,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             prefixIcon: const Icon(
               Icons.lock_outline,
               color: AppColors.textSecondary,
+              size: 20,
             ),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureText ? Icons.visibility_off : Icons.visibility,
+                _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 color: AppColors.textSecondary,
+                size: 20,
               ),
               onPressed: () {
                 setState(() {
