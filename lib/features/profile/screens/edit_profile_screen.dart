@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fishlog/core/widgets/app_button.dart';
 import 'package:fishlog/core/widgets/app_text_field.dart';
 
-class EditProfileScreen extends StatelessWidget {
+class EditProfileScreen extends StatefulWidget {
   final Map<String, String> userData;
   final ValueChanged<Map<String, String>> onUpdateProfile;
 
@@ -10,34 +10,55 @@ class EditProfileScreen extends StatelessWidget {
     super.key,
     required this.userData,
     required this.onUpdateProfile,
-  }) : super();
+  });
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // 1. Ініціалізуємо контролери ОДИН РАЗ при створенні екрана
+    _nameController = TextEditingController(
+      text: widget.userData['name'] ?? '',
+    );
+    _emailController = TextEditingController(
+      text: widget.userData['email'] ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    // 2. Обов'язково звільняємо пам'ять при закритті екрана
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final TextEditingController nameController =
-        TextEditingController(text: userData['name'] ?? '');
-    final TextEditingController emailController =
-        TextEditingController(text: userData['email'] ?? '');
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Редагування профілю'),
-      ),
+      appBar: AppBar(title: const Text('Редагування профілю')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
-          key: formKey,
+          key: _formKey,
           child: ListView(
             children: [
               AppTextField(
-                label: 'Ім\'я',
-                hintText: 'Введіть ваше ім\'я',
+                label: "Ім'я",
+                hintText: "Введіть ваше ім'я",
                 prefixIcon: Icons.person,
-                controller: nameController,
+                controller: _nameController,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Будь ласка, введіть ім\'я';
+                  if (value == null || value.trim().isEmpty) {
+                    return "Будь ласка, введіть ім'я";
                   }
                   return null;
                 },
@@ -47,9 +68,9 @@ class EditProfileScreen extends StatelessWidget {
                 label: 'Електронна пошта',
                 hintText: 'Введіть вашу пошту',
                 prefixIcon: Icons.email,
-                controller: emailController,
+                controller: _emailController,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Будь ласка, введіть пошту';
                   }
                   if (!value.contains('@')) {
@@ -61,12 +82,11 @@ class EditProfileScreen extends StatelessWidget {
               const SizedBox(height: 24),
               AppButton(
                 onPressed: () {
-                  if (formKey.currentState?.validate() ?? false) {
-                    onUpdateProfile({
-                      'name': nameController.text,
-                      'email': emailController.text,
+                  if (_formKey.currentState?.validate() ?? false) {
+                    widget.onUpdateProfile({
+                      'name': _nameController.text.trim(),
+                      'email': _emailController.text.trim(),
                     });
-                    // After updating, we can go back to the profile screen.
                     Navigator.of(context).pop();
                   }
                 },

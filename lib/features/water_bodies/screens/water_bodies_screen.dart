@@ -14,7 +14,7 @@ class WaterBodiesScreen extends StatelessWidget {
       'location': 'Київська обл., Вишгородський р-н',
       'notes': 'Глибина до 6 м, багато щуки в очереті.',
       'tripsCount': '2 виїзди',
-      'imageUrl': 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80',
+      'imageUrl': 'assets/images/pid_vodoy.avif',
     },
     {
       'name': 'Озеро Біле',
@@ -23,7 +23,7 @@ class WaterBodiesScreen extends StatelessWidget {
       'notes':
           'Чиста вода, піщане дно. Гарний кльов окуня та щуки на світанку.',
       'tripsCount': '1 виїзд',
-      'imageUrl': 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80',
+      'imageUrl': 'assets/images/okean_susha.avif',
     },
     {
       'name': 'Річка Стугна',
@@ -31,7 +31,7 @@ class WaterBodiesScreen extends StatelessWidget {
       'location': 'Київська обл., Обухівський р-н',
       'notes': 'Тиха річка. Плотва та краснопірка.',
       'tripsCount': '1 виїзд',
-      'imageUrl': 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80',
+      'imageUrl': 'assets/images/gory.avif',
     },
   ];
 

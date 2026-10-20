@@ -38,7 +38,7 @@ class WaterBodyCard extends StatelessWidget {
             // Квадратне фото водойми зліва
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
+              child: Image.asset(
                 imageUrl,
                 width: 84,
                 height: 84,
@@ -203,8 +203,8 @@ class _WaterBodyFormSheetContentState
     final String photoUrl =
         widget.initialImageUrl ??
         (widget.isEditing
-            ? 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80'
-            : 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80');
+            ? 'assets/images/gory.avif'
+            : 'assets/images/okean_susha.avif');
 
     return Container(
       margin: const EdgeInsets.only(top: 50),
@@ -283,7 +283,7 @@ class _WaterBodyFormSheetContentState
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: AppColors.cardBorder, width: 1.5),
                     ),
-                    child: Image.network(
+                    child: Image.asset(
                       photoUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
@@ -447,6 +447,8 @@ class _WaterBodyFormSheetContentState
                 ),
               ),
             ),
+
+            const SizedBox(height: 22),
           ],
         ),
       ),

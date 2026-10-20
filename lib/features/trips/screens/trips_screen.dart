@@ -11,7 +11,7 @@ class TripsScreen extends StatelessWidget {
   static const List<Map<String, String>> _mockTrips = [
     {
       'imageUrl':
-          'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80',
+          'assets/images/pid_vodoy.avif',
       'temperature': '+18°C',
       'date': '24 травня · 06:20',
       'location': 'Дніпровська затока',
@@ -20,7 +20,7 @@ class TripsScreen extends StatelessWidget {
     },
     {
       'imageUrl':
-          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80',
+          'assets/images/gory.avif',
       'temperature': '+14°C',
       'date': '18 травня · 05:45',
       'location': 'Озеро Біле',
@@ -29,7 +29,7 @@ class TripsScreen extends StatelessWidget {
     },
     {
       'imageUrl':
-          'https://images.unsplash.com/photo-1499363536502-87642509e31b?auto=format&fit=crop&w=900&q=80',
+          'assets/images/lis.avif',
       'temperature': '+21°C',
       'date': '10 травня · 07:00',
       'location': 'Річка Десна',
@@ -38,7 +38,7 @@ class TripsScreen extends StatelessWidget {
     },
     {
       'imageUrl':
-          'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80',
+          'assets/images/okean_susha.avif',
       'temperature': '+16°C',
       'date': '2 травня · 05:15',
       'location': 'Київське водосховище',

@@ -472,6 +472,8 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 22),
           ],
         ),
       ),
