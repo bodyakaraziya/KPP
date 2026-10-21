@@ -1,3 +1,4 @@
+import 'package:fishlog/features/auth/screens/forgot_password_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -858,22 +859,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to password recovery screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Функція відновлення паролю буде додана пізніше',
-                            ),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                      onPressed: () => _showResetPasswordBottomSheet(context),
                       child: const Text(
                         'Забули пароль?',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.primaryTeal,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -884,6 +876,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  void _showResetPasswordBottomSheet(BuildContext context) {
+    final TextEditingController resetEmailCtrl = TextEditingController(
+      text: _email,
+    ); // Одразу підставляємо email користувача
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Дозволяє шторці підніматися над клавіатурою
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          // EdgeInsets.only(bottom: ...) піднімає вміст при відкритті клавіатури
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Сіра смужка-індикатор для змахування шторки
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Text(
+                'Скидання пароля',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Ми надішлемо інструкції для відновлення пароля на вказану пошту.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Поле введення пошти
+              _buildFieldLabel('Email'),
+              _buildInputField(
+                controller: resetEmailCtrl,
+                prefixIcon: Icons.mail_outline,
+              ),
+              const SizedBox(height: 24),
+
+              // Кнопка відправки
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx); // Закриваємо шторку
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Інструкції надіслано на ${resetEmailCtrl.text.trim()}!',
+                        ),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryTeal,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Надіслати посилання',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              SizedBox(height: 28)
+            ],
+          ),
+        );
+      },
     );
   }
 
