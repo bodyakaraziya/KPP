@@ -275,11 +275,9 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
     final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
         ? media.viewInsets.bottom
         : media.viewPadding.bottom;
-    final currentStyle = TackleStyle.fromCategory(_selectedCategory);
-
     return Container(
       margin: const EdgeInsets.only(top: 60),
-      padding: EdgeInsets.fromLTRB(22, 12, 22, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(22, 12, 22, bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),

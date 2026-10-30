@@ -207,8 +207,8 @@ class _WaterBodyFormSheetContentState
             : 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80');
 
     return Container(
-      margin: const EdgeInsets.only(top: 50),
-      padding: EdgeInsets.fromLTRB(22, 12, 22, 20 + bottomInset),
+      margin: const EdgeInsets.only(top: 32),
+      padding: EdgeInsets.fromLTRB(22, 12, 22, bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -270,15 +270,15 @@ class _WaterBodyFormSheetContentState
             const SizedBox(height: 18),
 
             // Банер фотографії з кнопкою "Змінити фото"
-            Container(
-              height: 112,
+            SizedBox(
+              height: 96,
               width: double.infinity,
               child: Stack(
                 children: [
                   // Image with errorBuilder
                   Container(
                     width: double.infinity,
-                    height: 112,
+                    height: 96,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
@@ -291,7 +291,7 @@ class _WaterBodyFormSheetContentState
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: double.infinity,
-                        height: 112,
+                        height: 96,
                         color: Colors.grey[300],
                         alignment: Alignment.center,
                         child: Icon(
@@ -389,7 +389,7 @@ class _WaterBodyFormSheetContentState
             _buildTextField(
               initialValue: widget.initialNotes,
               hintText: 'Особливості місця...',
-              maxLines: 3,
+              maxLines: 2,
             ),
             const SizedBox(height: 22),
 

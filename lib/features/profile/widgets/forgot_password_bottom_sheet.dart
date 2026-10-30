@@ -54,11 +54,13 @@ class _ForgotPasswordBottomSheetState extends State<ForgotPasswordBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final bottomInset = media.viewInsets.bottom;
+    final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
+        ? media.viewInsets.bottom
+        : media.viewPadding.bottom;
 
     return Container(
-      margin: const EdgeInsets.only(top: 24),
-      padding: EdgeInsets.fromLTRB(22, 12, 22, 16 + bottomInset),
+      margin: const EdgeInsets.only(top: 60),
+      padding: EdgeInsets.fromLTRB(22, 12, 22, bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
