@@ -70,14 +70,6 @@ class AuthRepository {
     return name;
   }
 
-  Future<String?> reloadCurrentUserEmail() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) return null;
-
-    await user.reload();
-    return _firebaseAuth.currentUser?.email;
-  }
-
   // Реєстрація через Email та Пароль
   Future<UserCredential> signUp({
     required String email,

@@ -58,10 +58,11 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const Text(
           'Попередній перегляд',
+          textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 8),
@@ -98,19 +99,27 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Вибрати фото',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Вибрати фото',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Виберіть з галереї або вкажіть посилання',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Виберіть з галереї або вкажіть посилання',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ),
               const SizedBox(height: 18),
               Row(
@@ -168,6 +177,7 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
               ),
               const SizedBox(height: 16),
               Wrap(
+                alignment: WrapAlignment.center,
                 spacing: 10,
                 runSpacing: 10,
                 children: PhotoPickerDialog.demoPhotos.map((url) {

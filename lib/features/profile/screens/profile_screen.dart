@@ -122,44 +122,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_pendingEmail == _email) _pendingEmail = null;
   }
 
-  Future<void> _checkEmailConfirmation() async {
-    final pendingEmail = _pendingEmail;
-    if (pendingEmail == null) return;
-
-    try {
-      final email = await _authRepository.reloadCurrentUserEmail();
-      if (!mounted) return;
-      if (email != null && email == pendingEmail) {
-        setState(() {
-          _pendingEmail = null;
-          // Оновлюємо лише email. Не синхронізуємо весь профіль через
-          // currentUser, бо Firebase може короткочасно повернути null після reload.
-          _email = email;
-          _emailCtrl.text = email;
-        });
-        showAppSnackBar(
-          context,
-          message: 'Пошту успішно підтверджено.',
-          isError: false,
-        );
-      } else {
-        showAppSnackBar(
-          context,
-          message: 'Підтвердження ще не отримано. Перевірте поштову скриньку.',
-          isError: true,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      showAppSnackBar(
-        context,
-        title: 'Не вдалося перевірити пошту',
-        message: authErrorMessage(e),
-        isError: true,
-      );
-    }
-  }
-
   String get _initial =>
       _firstName.isNotEmpty ? _firstName[0].toUpperCase() : 'А';
 
@@ -451,13 +413,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       fontSize: 13,
                                       color: AppColors.textSecondary,
                                       height: 1.4,
-                                    ),
-                                  ),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: _checkEmailConfirmation,
-                                      child: const Text('Я підтвердив'),
                                     ),
                                   ),
                                 ],

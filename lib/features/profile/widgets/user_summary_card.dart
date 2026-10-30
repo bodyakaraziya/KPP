@@ -33,17 +33,19 @@ class UserSummaryCard extends StatelessWidget {
   }
 
   Widget _avatarPlaceholder() {
-    return Container(
-      width: 78,
-      height: 78,
-      color: AppColors.lightAmberBg,
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: const TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w800,
-          color: AppColors.accentAmber,
+    return ClipOval(
+      child: Container(
+        width: 78,
+        height: 78,
+        color: AppColors.lightAmberBg,
+        alignment: Alignment.center,
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: AppColors.accentAmber,
+          ),
         ),
       ),
     );
@@ -169,7 +171,9 @@ class UserSummaryCard extends StatelessWidget {
           IntrinsicHeight(
             child: Row(
               children: [
-                Expanded(child: _buildStatColumn(value: '18', label: 'виїзди')),
+                Expanded(
+                  child: _buildStatColumn(value: '18', label: 'виїзди'),
+                ),
                 const VerticalDivider(
                   color: AppColors.cardBorder,
                   thickness: 1,
@@ -181,7 +185,9 @@ class UserSummaryCard extends StatelessWidget {
                   color: AppColors.cardBorder,
                   thickness: 1,
                 ),
-                Expanded(child: _buildStatColumn(value: '12', label: 'видів')),
+                Expanded(
+                  child: _buildStatColumn(value: '12', label: 'видів'),
+                ),
               ],
             ),
           ),
