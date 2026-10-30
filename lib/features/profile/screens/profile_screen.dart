@@ -29,9 +29,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final AuthRepository _authRepository = AuthRepository();
 
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<Map<String, dynamic>?>? _profileSubscription;
 
-  // Поточні дані користувача з Firebase Auth
+  // Поточні дані користувача
   String _firstName = '';
+  String? _profileUid;
   String _email = '';
   String _phone = '';
   String? _avatarUrl;
@@ -43,6 +45,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isDarkTheme = false;
   String _selectedLang = 'УКР';
   bool _isMenuOpen = false;
+
+  String? _pendingEmail;
 
   // Контролери
   late final TextEditingController _firstNameCtrl;
@@ -62,22 +66,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _currentPasswordCtrl = TextEditingController();
     _newPasswordCtrl = TextEditingController();
     _confirmPasswordCtrl = TextEditingController();
+    _watchProfile(_authRepository.currentUser);
 
     _authSubscription = _authRepository.authStateChanges.listen((user) {
       if (!mounted) return;
-      _syncUser(user);
-      _firstNameCtrl.text = _firstName;
-      _emailCtrl.text = _email;
-      _phoneCtrl.text = _phone;
+      final profileChanged = _profileUid != user?.uid;
+      setState(() {
+        _syncUser(user);
+        _emailCtrl.text = _email;
+        _phoneCtrl.text = _phone;
+        if (profileChanged) _firstNameCtrl.text = _firstName;
+      });
+      if (profileChanged) _watchProfile(user);
+    });
+  }
+
+  void _watchProfile(User? user) {
+    _profileSubscription?.cancel();
+    if (user == null) return;
+    _profileSubscription = _authRepository.watchUserProfile(user.uid).listen((profile) {
+      if (!mounted || _authRepository.currentUser?.uid != user.uid) return;
+      final name = profile?['displayName'];
+      final avatar = profile?['photoURL'];
+      final phone = profile?['phone'];
+      setState(() {
+        if (name is String && name.trim().isNotEmpty) {
+          _firstName = name.trim();
+          if (!_isEditingPersonal) _firstNameCtrl.text = _firstName;
+        }
+        _avatarUrl = avatar is String && avatar.trim().isNotEmpty ? avatar : null;
+        if (phone is String) {
+          _phone = phone;
+          if (!_isEditingPersonal) _phoneCtrl.text = phone;
+        }
+      });
     });
   }
 
   void _syncUser(User? user) {
-    _firstName = (user?.displayName ?? '').trim().isNotEmpty
-        ? user!.displayName!
-        : 'Користувач';
+    if (_profileUid != user?.uid) {
+      _profileUid = user?.uid;
+      _firstName = (user?.displayName ?? '').trim().isNotEmpty
+          ? user!.displayName!
+          : 'Користувач';
+    }
     _email = user?.email ?? '';
     _avatarUrl = user?.photoURL;
+    if (_pendingEmail == _email) _pendingEmail = null;
+  }
+
+  Future<void> _checkEmailConfirmation() async {
+    final pendingEmail = _pendingEmail;
+    if (pendingEmail == null) return;
+
+    try {
+      final email = await _authRepository.reloadCurrentUserEmail();
+      if (!mounted) return;
+      if (email == pendingEmail) {
+        setState(() {
+          _pendingEmail = null;
+          _syncUser(_authRepository.currentUser);
+          _emailCtrl.text = _email;
+        });
+        showAppSnackBar(
+          context,
+          message: 'Пошту підтверджено.',
+          isError: false,
+        );
+      } else {
+        showAppSnackBar(
+          context,
+          message:
+              'Підтвердження ще не знайдено. Перевірте лист і спробуйте знову.',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        title: 'Не вдалося перевірити пошту',
+        message: authErrorMessage(e),
+        isError: true,
+      );
+    }
   }
 
   String get _initial =>
@@ -86,6 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _profileSubscription?.cancel();
     _firstNameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -93,6 +166,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _newPasswordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
+  }
+
+  Future<String?> _requestCurrentPassword() async {
+    final controller = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Підтвердіть зміну пошти'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Поточний пароль'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Скасувати'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Продовжити'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return password;
   }
 
   // --- Особисті дані ---
@@ -108,10 +210,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    // Телефон опціональний, але якщо введено — має бути валідним.
+    final newEmail = _emailCtrl.text.trim();
+    final emailChanged = newEmail.isNotEmpty && newEmail != _email;
+    if (emailChanged) {
+      final emailError = emailValidator()(newEmail);
+      if (emailError != null) {
+        showAppSnackBar(
+          context,
+          title: 'Помилка',
+          message: emailError,
+          isError: true,
+        );
+        return;
+      }
+    }
+
+    // Телефон опціональний. Залишене лише '+380' означає, що телефон не вказано.
     final phoneText = _phoneCtrl.text.trim();
     String? phoneToSave;
-    if (phoneText.isNotEmpty && phoneText != '+380 ') {
+    if (phoneText.isNotEmpty && phoneText != '+380') {
       final digits = phoneText.replaceAll(RegExp(r'\D'), '');
       String number = digits;
       if (number.startsWith('380')) {
@@ -121,8 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         showAppSnackBar(
           context,
           title: 'Помилка',
-          message:
-              'Номер телефону має містити 9 цифр після коду +380.',
+          message: 'Номер телефону має містити 9 цифр після коду +380.',
           isError: true,
         );
         return;
@@ -130,18 +246,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
       phoneToSave = phoneText;
     }
 
+    String? currentPassword;
+    if (emailChanged && _authRepository.usesPasswordProvider) {
+      currentPassword = await _requestCurrentPassword();
+      if (!mounted || currentPassword == null) return;
+      if (currentPassword.isEmpty) {
+        showAppSnackBar(
+          context,
+          title: 'Помилка',
+          message: 'Введіть поточний пароль.',
+          isError: true,
+        );
+        return;
+      }
+    }
+
     try {
-      await _authRepository.updateProfile(displayName: name);
+      if (emailChanged) {
+        await _authRepository.updateEmail(
+          newEmail: newEmail,
+          currentPassword: currentPassword,
+        );
+      }
+      await _authRepository.saveProfileData(
+        name: name,
+        phone: phoneToSave ?? '',
+      );
       if (!mounted) return;
       setState(() {
         _firstName = name;
-        _email = _emailCtrl.text.trim();
+        if (emailChanged) _pendingEmail = newEmail;
         _phone = phoneToSave ?? '';
         _isEditingPersonal = false;
+        _isPersonalExpanded = false;
       });
       showAppSnackBar(
         context,
-        message: 'Особисті дані оновлено!',
+        message: emailChanged
+            ? 'Дані оновлено. На нову пошту надіслано листа для підтвердження; стара адреса діє до підтвердження.'
+            : 'Особисті дані оновлено!',
         isError: false,
       );
     } catch (e) {
@@ -293,8 +436,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               setState(() {
                                 _firstNameCtrl.text = _firstName;
                                 _emailCtrl.text = _email;
-                                _phoneCtrl.text =
-                                    _phone.isEmpty ? '+380 ' : _phone;
+                                _phoneCtrl.text = _phone.isEmpty
+                                    ? '+380 '
+                                    : _phone;
                                 _isEditingPersonal = true;
                               });
                             },
@@ -305,6 +449,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             emailCtrl: _emailCtrl,
                             phoneCtrl: _phoneCtrl,
                           ),
+                          if (_pendingEmail != null) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.lightTealBg,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: AppColors.cardBorder),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Очікується підтвердження пошти',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Перейдіть за посиланням у листі, надісланому на $_pendingEmail. До підтвердження для входу діє стара адреса.',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: _checkEmailConfirmation,
+                                      child: const Text('Я підтвердив'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           AppSettingsCard(
                             isDarkTheme: _isDarkTheme,
@@ -320,22 +504,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           PasswordCard(
                             isOpen: _isPasswordFormOpen,
                             hasPassword: hasPassword,
-                            onToggle: () =>
-                                setState(() => _isPasswordFormOpen =
-                                    !_isPasswordFormOpen),
+                            onToggle: () => setState(
+                              () => _isPasswordFormOpen = !_isPasswordFormOpen,
+                            ),
                             onForgotPassword: _showForgotPasswordBottomSheet,
                             onChangePassword: _changePassword,
                             currentPasswordCtrl: _currentPasswordCtrl,
                             newPasswordCtrl: _newPasswordCtrl,
                             confirmPasswordCtrl: _confirmPasswordCtrl,
-                            currentPasswordValidator:
-                                requiredValidator(
-                                    fieldName: 'Поточний пароль'),
+                            currentPasswordValidator: requiredValidator(
+                              fieldName: 'Поточний пароль',
+                            ),
                             newPasswordValidator: passwordValidator(
-                                minLength: 8),
-                            confirmPasswordValidator:
-                                requiredValidator(
-                                    fieldName: 'Повторіть пароль'),
+                              minLength: 8,
+                            ),
+                            confirmPasswordValidator: requiredValidator(
+                              fieldName: 'Повторіть пароль',
+                            ),
                           ),
                           const SizedBox(height: 14),
                           Align(
@@ -458,10 +643,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showPhotoPickerDialog(
       context: context,
       onSelect: (url) async {
-        setState(() => _avatarUrl = url);
         try {
-          await _authRepository.updateProfile(photoURL: url);
-        } catch (_) {}
+          await _authRepository.saveProfileAvatar(url);
+          if (!mounted) return;
+          setState(() => _avatarUrl = url);
+          showAppSnackBar(
+            context,
+            message: url == null ? 'Аватар видалено.' : 'Аватар оновлено.',
+            isError: false,
+          );
+        } catch (e) {
+          if (!mounted) return;
+          showAppSnackBar(
+            context,
+            title: 'Не вдалося зберегти аватар',
+            message: authErrorMessage(e),
+            isError: true,
+          );
+        }
       },
     );
   }
@@ -477,8 +676,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (!mounted) return;
           showAppSnackBar(
             context,
-            message:
-                'Посилання для скидання паролю надіслано на вашу пошту.',
+            message: 'Посилання для скидання паролю надіслано на вашу пошту.',
             isError: false,
           );
         } catch (e) {

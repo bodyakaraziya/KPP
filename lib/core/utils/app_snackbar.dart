@@ -18,7 +18,12 @@ void showAppSnackBar(
       behavior: SnackBarBehavior.floating,
       backgroundColor: Colors.transparent,
       padding: EdgeInsets.zero,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        16 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
       duration: Duration(milliseconds: isError ? 4000 : 2500),
       content: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

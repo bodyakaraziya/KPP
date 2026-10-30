@@ -48,11 +48,7 @@ class WaterBodyCard extends StatelessWidget {
                   height: 84,
                   color: Colors.grey[300],
                   alignment: Alignment.center,
-                  child: Icon(
-                    Icons.image,
-                    size: 28,
-                    color: Colors.grey[600],
-                  ),
+                  child: Icon(Icons.image, size: 28, color: Colors.grey[600]),
                 ),
               ),
             ),
@@ -139,6 +135,7 @@ Future<void> showWaterBodyFormSheet(
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     builder: (ctx) {
@@ -199,7 +196,10 @@ class _WaterBodyFormSheetContentState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
+        ? media.viewInsets.bottom
+        : media.viewPadding.bottom;
     final String photoUrl =
         widget.initialImageUrl ??
         (widget.isEditing
@@ -281,7 +281,10 @@ class _WaterBodyFormSheetContentState
                     height: 112,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.cardBorder, width: 1.5),
+                      border: Border.all(
+                        color: AppColors.cardBorder,
+                        width: 1.5,
+                      ),
                     ),
                     child: Image.network(
                       photoUrl,

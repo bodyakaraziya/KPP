@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../home/screens/home_screen.dart';
 import '../../trips/screens/trips_screen.dart';
@@ -39,61 +41,66 @@ class _MainScreenState extends State<MainScreen> {
       const ProfileScreen(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
       ),
-      floatingActionButton: _currentIndex == 0 || _currentIndex == 1
-          ? FloatingActionButton(
-              heroTag: 'main_screen_fab',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddTripScreen()),
-                );
-              },
-              backgroundColor: AppColors.primaryTeal,
-              foregroundColor: Colors.white,
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.add, size: 30),
-            )
-          : null,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppColors.cardBorder, width: 0.8),
+      child: Scaffold(
+        body: IndexedStack(index: _currentIndex, children: screens),
+        floatingActionButton: _currentIndex == 0 || _currentIndex == 1
+            ? FloatingActionButton(
+                heroTag: 'main_screen_fab',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddTripScreen()),
+                  );
+                },
+                backgroundColor: AppColors.primaryTeal,
+                foregroundColor: Colors.white,
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.add, size: 30),
+              )
+            : null,
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: AppColors.cardBorder, width: 0.8),
+            ),
           ),
-        ),
-        child: NavigationBar(
-          height: 70,
-          selectedIndex: _currentIndex,
-          onDestinationSelected: _switchTab,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_outlined),
-              label: 'Головна',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.calendar_today_outlined),
-              selectedIcon: Icon(Icons.calendar_today),
-              label: 'Виїзди',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.water_drop_outlined),
-              selectedIcon: Icon(Icons.water_drop),
-              label: 'Водойми',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Профіль',
-            ),
-          ],
+          child: NavigationBar(
+            height: 70,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: _switchTab,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_outlined),
+                label: 'Головна',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_today_outlined),
+                selectedIcon: Icon(Icons.calendar_today),
+                label: 'Виїзди',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.water_drop_outlined),
+                selectedIcon: Icon(Icons.water_drop),
+                label: 'Водойми',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Профіль',
+              ),
+            ],
+          ),
         ),
       ),
     );

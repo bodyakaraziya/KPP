@@ -21,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthRepository _authRepository = AuthRepository();
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<Map<String, dynamic>?>? _profileSubscription;
 
   String _userName = 'Користувач';
   String? _avatarUrl;
@@ -30,8 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _updateUser(_authRepository.currentUser);
+    _watchProfile(_authRepository.currentUser);
     _authSubscription = _authRepository.authStateChanges.listen((user) {
-      if (mounted) _updateUser(user);
+      if (!mounted) return;
+      _updateUser(user);
+      _watchProfile(user);
     });
   }
 
@@ -41,12 +45,30 @@ class _HomeScreenState extends State<HomeScreen> {
         : 'Користувач';
     _avatarUrl = user?.photoURL;
     _userInitial = _userName.isNotEmpty ? _userName[0].toUpperCase() : 'К';
-    setState(() {});
+    if (mounted) setState(() {});
+  }
+
+  void _watchProfile(User? user) {
+    _profileSubscription?.cancel();
+    if (user == null) return;
+    _profileSubscription = _authRepository.watchUserProfile(user.uid).listen((profile) {
+      if (!mounted || _authRepository.currentUser?.uid != user.uid) return;
+      final name = profile?['displayName'];
+      final avatar = profile?['photoURL'];
+      setState(() {
+        if (name is String && name.trim().isNotEmpty) {
+          _userName = name.trim();
+        }
+        _avatarUrl = avatar is String && avatar.trim().isNotEmpty ? avatar : null;
+        _userInitial = _userName.isNotEmpty ? _userName[0].toUpperCase() : 'К';
+      });
+    });
   }
 
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _profileSubscription?.cancel();
     super.dispose();
   }
 

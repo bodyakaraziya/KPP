@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -7,15 +8,79 @@ class AuthRepository {
 
   AuthRepository({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
     : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-      _googleSignIn = googleSignIn ??
+      _googleSignIn =
+          googleSignIn ??
           GoogleSignIn(
-            serverClientId:
-                '198956360446-6g58p1kgqho36lm2laup9lebhlscff8p.apps.googleusercontent.com',
+            serverClientId: '198956360446-6g58p1kgqho36lm2laup9lebhlscff8p.apps.googleusercontent.com',
           );
 
   User? get currentUser => _firebaseAuth.currentUser;
 
+  bool get usesPasswordProvider =>
+      currentUser?.providerData.any(
+        (provider) => provider.providerId == 'password',
+      ) ??
+      false;
+
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
+
+  CollectionReference<Map<String, dynamic>> get _userProfiles =>
+      FirebaseFirestore.instance.collection('users');
+
+  Stream<Map<String, dynamic>?> watchUserProfile(String uid) =>
+      _userProfiles.doc(uid).snapshots().map((snapshot) => snapshot.data());
+
+  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+    final snapshot = await _userProfiles.doc(uid).get();
+    return snapshot.data();
+  }
+
+  Future<void> saveProfileData({required String name, required String phone}) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw Exception('Користувача не знайдено');
+
+    await user.updateDisplayName(name);
+    await _userProfiles.doc(user.uid).set({
+      'displayName': name,
+      'phone': phone,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> saveProfileAvatar(String? photoURL) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw Exception('Користувача не знайдено');
+
+    await user.updatePhotoURL(photoURL);
+    await _userProfiles.doc(user.uid).set({
+      'photoURL': photoURL,
+    }, SetOptions(merge: true));
+  }
+
+  Future<String?> ensureProfileName(String? fallbackName) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return null;
+
+    final document = _userProfiles.doc(user.uid);
+    final snapshot = await document.get();
+    final storedName = snapshot.data()?['displayName'];
+    if (storedName is String && storedName.trim().isNotEmpty) {
+      return storedName.trim();
+    }
+
+    final name = (fallbackName ?? user.displayName ?? '').trim();
+    if (name.isEmpty) return null;
+
+    await document.set({'displayName': name}, SetOptions(merge: true));
+    return name;
+  }
+
+  Future<String?> reloadCurrentUserEmail() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return null;
+
+    await user.reload();
+    return _firebaseAuth.currentUser?.email;
+  }
 
   // Реєстрація через Email та Пароль
   Future<UserCredential> signUp({
@@ -112,6 +177,54 @@ class AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));
     }
+  }
+
+  // Надсилає підтвердження після повторної автентифікації.
+  Future<void> updateEmail({
+    required String newEmail,
+    String? currentPassword,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null || user.email == null) {
+        throw Exception('Користувача не знайдено');
+      }
+
+      final providers = user.providerData.map(
+        (provider) => provider.providerId,
+      );
+      if (providers.contains('password')) {
+        if (currentPassword == null || currentPassword.isEmpty) {
+          throw Exception('Введіть поточний пароль.');
+        }
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: currentPassword,
+        );
+        await user.reauthenticateWithCredential(credential);
+      } else if (providers.contains('google.com')) {
+        await _reauthenticateWithGoogle(user);
+      } else {
+        throw Exception('Повторно увійдіть в акаунт, щоб змінити пошту.');
+      }
+
+      await user.verifyBeforeUpdateEmail(newEmail);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  Future<void> _reauthenticateWithGoogle(User user) async {
+    await _googleSignIn.signOut();
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) throw Exception('Повторний вхід скасовано.');
+
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    await user.reauthenticateWithCredential(credential);
   }
 
   // Зміна пароля з повторною автентифікацією

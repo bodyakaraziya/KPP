@@ -216,6 +216,7 @@ Future<void> showTackleFormSheet(
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     builder: (ctx) {
@@ -270,7 +271,10 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
+        ? media.viewInsets.bottom
+        : media.viewPadding.bottom;
     final currentStyle = TackleStyle.fromCategory(_selectedCategory);
 
     return Container(

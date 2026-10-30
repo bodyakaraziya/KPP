@@ -20,8 +20,7 @@ class ForgotPasswordBottomSheet extends StatefulWidget {
       _ForgotPasswordBottomSheetState();
 }
 
-class _ForgotPasswordBottomSheetState
-    extends State<ForgotPasswordBottomSheet> {
+class _ForgotPasswordBottomSheetState extends State<ForgotPasswordBottomSheet> {
   late TextEditingController _emailCtrl;
 
   @override
@@ -54,9 +53,12 @@ class _ForgotPasswordBottomSheetState
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
+
     return Container(
-      margin: const EdgeInsets.only(top: 50),
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+      margin: const EdgeInsets.only(top: 24),
+      padding: EdgeInsets.fromLTRB(22, 12, 22, 16 + bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -147,11 +149,10 @@ Future<void> showForgotPasswordBottomSheet({
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (ctx) => ForgotPasswordBottomSheet(
-      initialEmail: initialEmail,
-      onSend: onSend,
-    ),
+    builder: (ctx) =>
+        ForgotPasswordBottomSheet(initialEmail: initialEmail, onSend: onSend),
   );
 }
