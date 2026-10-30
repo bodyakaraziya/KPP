@@ -60,6 +60,28 @@ FormFieldValidator<String> confirmPasswordValidator(String Function() password) 
   };
 }
 
+/// Валідатор номера телефону.
+/// Очікує формат '+380' та 9 цифр після коду (мобільний номер України).
+FormFieldValidator<String> phoneValidator() {
+  return (value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Будь ласка, введіть номер телефону';
+    }
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    String number = digits;
+    if (number.startsWith('380')) {
+      number = number.substring(3);
+    }
+    if (number.isEmpty) {
+      return 'Будь ласка, введіть цифри номера після коду +380';
+    }
+    if (number.length != 9) {
+      return 'Номер телефону має містити 9 цифр після коду +380';
+    }
+    return null;
+  };
+}
+
 /// Мапить коди помилок Firebase Auth на українські повідомлення.
 final _firebaseErrorMessages = {
   'user-not-found': 'Користувача з таким Email не знайдено.',
