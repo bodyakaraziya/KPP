@@ -6,14 +6,14 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
-import '../../auth/screens/login_screen.dart';
 import '../../auth/repositories/auth_repository.dart';
+import '../../auth/screens/login_screen.dart';
 import '../../statistics/screens/statistics_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
 import '../widgets/app_settings_card.dart';
 import '../widgets/forgot_password_bottom_sheet.dart';
-import '../widgets/personal_data_card.dart';
 import '../widgets/password_card.dart';
+import '../widgets/personal_data_card.dart';
 import '../widgets/photo_picker_dialog.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/user_summary_card.dart';
@@ -73,9 +73,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profileChanged = _profileUid != user?.uid;
       setState(() {
         _syncUser(user);
-        _emailCtrl.text = _email;
-        _phoneCtrl.text = _phone;
-        if (profileChanged) _firstNameCtrl.text = _firstName;
+        // Оновлюємо тексти в полях ЛИШЕ якщо користувач зараз НЕ редагує профіль
+        if (!_isEditingPersonal) {
+          _emailCtrl.text = _email;
+          _phoneCtrl.text = _phone;
+          if (profileChanged) _firstNameCtrl.text = _firstName;
+        }
       });
       if (profileChanged) _watchProfile(user);
     });
@@ -84,7 +87,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _watchProfile(User? user) {
     _profileSubscription?.cancel();
     if (user == null) return;
-    _profileSubscription = _authRepository.watchUserProfile(user.uid).listen((profile) {
+    _profileSubscription = _authRepository.watchUserProfile(user.uid).listen((
+      profile,
+    ) {
       if (!mounted || _authRepository.currentUser?.uid != user.uid) return;
       final name = profile?['displayName'];
       final avatar = profile?['photoURL'];
@@ -94,7 +99,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _firstName = name.trim();
           if (!_isEditingPersonal) _firstNameCtrl.text = _firstName;
         }
-        _avatarUrl = avatar is String && avatar.trim().isNotEmpty ? avatar : null;
+        _avatarUrl = avatar is String && avatar.trim().isNotEmpty
+            ? avatar
+            : null;
         if (phone is String) {
           _phone = phone;
           if (!_isEditingPersonal) _phoneCtrl.text = phone;
@@ -122,22 +129,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final email = await _authRepository.reloadCurrentUserEmail();
       if (!mounted) return;
-      if (email == pendingEmail) {
+      if (email != null && email == pendingEmail) {
         setState(() {
           _pendingEmail = null;
-          _syncUser(_authRepository.currentUser);
-          _emailCtrl.text = _email;
+          // Оновлюємо лише email. Не синхронізуємо весь профіль через
+          // currentUser, бо Firebase може короткочасно повернути null після reload.
+          _email = email;
+          _emailCtrl.text = email;
         });
         showAppSnackBar(
           context,
-          message: 'Пошту підтверджено.',
+          message: 'Пошту успішно підтверджено.',
           isError: false,
         );
       } else {
         showAppSnackBar(
           context,
-          message:
-              'Підтвердження ще не знайдено. Перевірте лист і спробуйте знову.',
+          message: 'Підтвердження ще не отримано. Перевірте поштову скриньку.',
           isError: true,
         );
       }
@@ -168,35 +176,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  Future<String?> _requestCurrentPassword() async {
-    final controller = TextEditingController();
-    final password = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Підтвердіть зміну пошти'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Поточний пароль'),
-          onSubmitted: (value) => Navigator.pop(dialogContext, value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Скасувати'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Продовжити'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    return password;
-  }
-
   // --- Особисті дані ---
   Future<void> _savePersonalData() async {
     final name = _firstNameCtrl.text.trim();
@@ -212,6 +191,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final newEmail = _emailCtrl.text.trim();
     final emailChanged = newEmail.isNotEmpty && newEmail != _email;
+    if (emailChanged && !_authRepository.usesPasswordProvider) {
+      showAppSnackBar(
+        context,
+        title: 'Пошту не змінено',
+        message:
+            'Для зміни пошти потрібен акаунт із входом через email і пароль.',
+        isError: true,
+      );
+      return;
+    }
     if (emailChanged) {
       final emailError = emailValidator()(newEmail);
       if (emailError != null) {
@@ -225,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    // Телефон опціональний. Залишене лише '+380' означає, що телефон не вказано.
+    // Нормалізація номера телефону
     final phoneText = _phoneCtrl.text.trim();
     String? phoneToSave;
     if (phoneText.isNotEmpty && phoneText != '+380') {
@@ -234,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (number.startsWith('380')) {
         number = number.substring(3);
       }
-      if (number.isEmpty || number.length != 9) {
+      if (number.isNotEmpty && number.length != 9) {
         showAppSnackBar(
           context,
           title: 'Помилка',
@@ -243,55 +232,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
         return;
       }
-      phoneToSave = phoneText;
-    }
-
-    String? currentPassword;
-    if (emailChanged && _authRepository.usesPasswordProvider) {
-      currentPassword = await _requestCurrentPassword();
-      if (!mounted || currentPassword == null) return;
-      if (currentPassword.isEmpty) {
-        showAppSnackBar(
-          context,
-          title: 'Помилка',
-          message: 'Введіть поточний пароль.',
-          isError: true,
-        );
-        return;
+      if (number.length == 9) {
+        phoneToSave = phoneText;
       }
     }
 
     try {
       if (emailChanged) {
-        await _authRepository.updateEmail(
-          newEmail: newEmail,
-          currentPassword: currentPassword,
-        );
+        await _authRepository.updateEmail(newEmail: newEmail);
+        if (!mounted) return;
+        setState(() => _pendingEmail = newEmail);
       }
       await _authRepository.saveProfileData(
         name: name,
         phone: phoneToSave ?? '',
       );
       if (!mounted) return;
+
       setState(() {
         _firstName = name;
         if (emailChanged) _pendingEmail = newEmail;
         _phone = phoneToSave ?? '';
         _isEditingPersonal = false;
-        _isPersonalExpanded = false;
+        _isPersonalExpanded = false; // Закриваємо панельку після збереження
       });
+
       showAppSnackBar(
         context,
         message: emailChanged
-            ? 'Дані оновлено. На нову пошту надіслано листа для підтвердження; стара адреса діє до підтвердження.'
-            : 'Особисті дані оновлено!',
+            ? 'Особисті дані збережено. Лист для підтвердження надіслано на $newEmail.'
+            : 'Особисті дані успішно збережено!',
         isError: false,
       );
     } catch (e) {
       if (!mounted) return;
       showAppSnackBar(
         context,
-        title: 'Помилка',
+        title: 'Помилка збереження',
         message: authErrorMessage(e),
         isError: true,
       );
@@ -308,7 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       showAppSnackBar(
         context,
         title: 'Помилка',
-        message: 'Будь ласка, заповніть всі поля',
+        message: 'Заповніть усі поля для зміни пароля',
         isError: true,
       );
       return;
@@ -318,7 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       showAppSnackBar(
         context,
         title: 'Помилка',
-        message: 'Новий пароль має містити щонайменше 8 символів',
+        message: 'Пароль має містити щонайменше 8 символів',
         isError: true,
       );
       return;
@@ -328,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       showAppSnackBar(
         context,
         title: 'Помилка',
-        message: 'Паролі не збігаються',
+        message: 'Введені паролі не збігаються',
         isError: true,
       );
       return;
@@ -346,7 +323,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _isPasswordFormOpen = false);
       showAppSnackBar(
         context,
-        message: 'Пароль успішно оновлено!',
+        message: 'Пароль успішно змінено!',
         isError: false,
       );
     } catch (e) {
@@ -360,7 +337,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- Вихід ---
   Future<void> _signOut() async {
     await _authRepository.signOut();
     if (!mounted) return;
@@ -372,8 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _authRepository.currentUser;
-    final hasPassword = user?.email != null;
+    final hasPassword = _authRepository.usesPasswordProvider;
 
     return Container(
       decoration: const BoxDecoration(
@@ -387,7 +362,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: SafeArea(
         child: Stack(
           children: [
-            // Основний контент
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -443,8 +417,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               });
                             },
                             onSave: _savePersonalData,
-                            onCancel: () =>
-                                setState(() => _isEditingPersonal = false),
+                            onCancel: () => setState(() {
+                              _isEditingPersonal = false;
+                            }),
                             firstNameCtrl: _firstNameCtrl,
                             emailCtrl: _emailCtrl,
                             phoneCtrl: _phoneCtrl,
@@ -471,7 +446,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Перейдіть за посиланням у листі, надісланому на $_pendingEmail. До підтвердження для входу діє стара адреса.',
+                                    'Перейдіть за посиланням у листі, надісланому на $_pendingEmail.',
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: AppColors.textSecondary,
@@ -555,8 +530,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-
-            // Прозорий перехоплювач натискань поза меню
             if (_isMenuOpen)
               Positioned.fill(
                 child: GestureDetector(
@@ -565,8 +538,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: const SizedBox.expand(),
                 ),
               ),
-
-            // Випадаюче меню
             if (_isMenuOpen)
               Positioned(
                 top: 68.0,
@@ -638,7 +609,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- Діялоги / панелі ---
   void _showPickPhotoDialog() {
     showPhotoPickerDialog(
       context: context,

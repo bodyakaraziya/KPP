@@ -4,7 +4,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_background.dart';
-import '../../../core/icons/google_logo_icon.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
 import '../../main/screens/main_screen.dart';
@@ -75,31 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
       showAppSnackBar(
         context,
         title: 'Помилка авторизації',
-        message: authErrorMessage(e),
-        isError: true,
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final userCredential = await _authRepository.signInWithGoogle();
-      if (userCredential == null || !mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      showAppSnackBar(
-        context,
-        title: 'Помилка входу через Google',
         message: authErrorMessage(e),
         isError: true,
       );
@@ -193,29 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 : AppButton(text: 'Увійти', onPressed: _handleLogin),
             const SizedBox(height: 12),
 
-            // Кнопка входу через Google
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : _handleGoogleSignIn,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.cardBorder),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: const GoogleLogoIcon(size: 22),
-                label: const Text(
-                  'Увійти через Google',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ),
             const SizedBox(height: 22),
 
             Row(

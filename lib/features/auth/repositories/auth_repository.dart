@@ -1,18 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
-  final GoogleSignIn _googleSignIn;
 
-  AuthRepository({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
-    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-      _googleSignIn =
-          googleSignIn ??
-          GoogleSignIn(
-            serverClientId: '198956360446-6g58p1kgqho36lm2laup9lebhlscff8p.apps.googleusercontent.com',
-          );
+  AuthRepository({FirebaseAuth? firebaseAuth})
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   User? get currentUser => _firebaseAuth.currentUser;
 
@@ -35,7 +28,10 @@ class AuthRepository {
     return snapshot.data();
   }
 
-  Future<void> saveProfileData({required String name, required String phone}) async {
+  Future<void> saveProfileData({
+    required String name,
+    required String phone,
+  }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) throw Exception('Користувача не знайдено');
 
@@ -119,29 +115,6 @@ class AuthRepository {
     }
   }
 
-  // Вхід через Google
-  Future<UserCredential?> signInWithGoogle() async {
-    try {
-      await _googleSignIn.signOut(); // Закрити поточний сеанс Google, щоб завжди з'являлася панель вибору акаунту
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // Скасовано користувачем
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      return await _firebaseAuth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      throw Exception(_translateAuthError(e.code));
-    } catch (e) {
-      throw Exception('Не вдалося увійти через Google: $e');
-    }
-  }
-
   // Скидання пароля — лист містить посилання на стандартну сторінку Firebase
   Future<void> sendPasswordResetEmail(String email) async {
     try {
@@ -180,51 +153,15 @@ class AuthRepository {
   }
 
   // Надсилає підтвердження після повторної автентифікації.
-  Future<void> updateEmail({
-    required String newEmail,
-    String? currentPassword,
-  }) async {
+  Future<void> updateEmail({required String newEmail}) async {
     try {
       final user = _firebaseAuth.currentUser;
-      if (user == null || user.email == null) {
-        throw Exception('Користувача не знайдено');
-      }
-
-      final providers = user.providerData.map(
-        (provider) => provider.providerId,
-      );
-      if (providers.contains('password')) {
-        if (currentPassword == null || currentPassword.isEmpty) {
-          throw Exception('Введіть поточний пароль.');
-        }
-        final credential = EmailAuthProvider.credential(
-          email: user.email!,
-          password: currentPassword,
-        );
-        await user.reauthenticateWithCredential(credential);
-      } else if (providers.contains('google.com')) {
-        await _reauthenticateWithGoogle(user);
-      } else {
-        throw Exception('Повторно увійдіть в акаунт, щоб змінити пошту.');
-      }
+      if (user == null) throw Exception('Користувача не знайдено');
 
       await user.verifyBeforeUpdateEmail(newEmail);
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));
     }
-  }
-
-  Future<void> _reauthenticateWithGoogle(User user) async {
-    await _googleSignIn.signOut();
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) throw Exception('Повторний вхід скасовано.');
-
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-    await user.reauthenticateWithCredential(credential);
   }
 
   // Зміна пароля з повторною автентифікацією
@@ -253,7 +190,7 @@ class AuthRepository {
 
   // Вихід із системи
   Future<void> signOut() async {
-    await Future.wait([_firebaseAuth.signOut(), _googleSignIn.signOut()]);
+    await _firebaseAuth.signOut();
   }
 
   // Переклад помилок Firebase Auth

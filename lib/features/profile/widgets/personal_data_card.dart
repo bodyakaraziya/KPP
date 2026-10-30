@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
 
-/// Маска для номера телефона: завжди починається з '+380 ',
-/// потім цифри розділені пробілами (шаблон XX XXX XX XX).
 class PhoneMaskFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -17,7 +15,7 @@ class PhoneMaskFormatter extends TextInputFormatter {
     if (digits.isEmpty) {
       return const TextEditingValue(
         text: '+380 ',
-        selection: TextSelection.collapsed(offset: 4),
+        selection: TextSelection.collapsed(offset: 5),
       );
     }
 
@@ -26,7 +24,6 @@ class PhoneMaskFormatter extends TextInputFormatter {
       local = local.substring(3);
     }
 
-    // Забороняємо вводити більше 9 цифр після коду +380.
     if (local.length > 9) {
       return oldValue;
     }
@@ -43,15 +40,24 @@ class PhoneMaskFormatter extends TextInputFormatter {
       groups.add(local.substring(i));
     }
 
-    final formatted = '+380 ' + groups.join(' ');
+    final formatted = '+380 ${groups.join(' ')}';
+
+    // Розрахунок позиції курсора
+    int selectionIndex = formatted.length;
+    if (newValue.selection.end < newValue.text.length) {
+      selectionIndex = newValue.selection.end;
+      if (selectionIndex > formatted.length) {
+        selectionIndex = formatted.length;
+      }
+    }
+
     return TextEditingValue(
       text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      selection: TextSelection.collapsed(offset: selectionIndex),
     );
   }
 }
 
-/// Картка "Особисті дані": перегляд та форма редагування (без поля прізвища).
 class PersonalDataCard extends StatelessWidget {
   final String name;
   final String email;
@@ -216,7 +222,6 @@ class PersonalDataCard extends StatelessWidget {
           hintText: 'Ваше ім\'я',
         ),
         const SizedBox(height: 14),
-
         _buildFieldLabel('Email'),
         _buildInputField(
           controller: emailCtrl,
@@ -225,7 +230,6 @@ class PersonalDataCard extends StatelessWidget {
           keyboardType: TextInputType.emailAddress,
         ),
         const SizedBox(height: 14),
-
         _buildFieldLabel('Телефон'),
         _buildInputField(
           controller: phoneCtrl,
@@ -236,7 +240,6 @@ class PersonalDataCard extends StatelessWidget {
           formatters: [PhoneMaskFormatter()],
         ),
         const SizedBox(height: 18),
-
         Row(
           children: [
             Expanded(
@@ -295,7 +298,6 @@ class PersonalDataCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Заголовок акордеона
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -357,8 +359,6 @@ class PersonalDataCard extends StatelessWidget {
               ),
             ),
           ),
-
-          // Вміст розгорнутої секції
           if (isExpanded) ...[
             const Divider(color: AppColors.cardBorder, height: 1),
             Padding(

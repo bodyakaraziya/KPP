@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Діалог "Вибрати фото": камера, галерея або демо-фото.
 class PhotoPickerDialog extends StatefulWidget {
   static const List<String> demoPhotos = [
     'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
@@ -31,15 +30,60 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
   }
 
   void _selectCustomUrl() {
-    final value = _urlController.text.trim();
-    final uri = Uri.tryParse(value);
+    String rawValue = _urlController.text.trim();
+    if (rawValue.isEmpty) {
+      setState(() => _urlError = 'Введіть посилання на зображення');
+      return;
+    }
+
+    // Якщо протокол не вказано, використовуємо HTTPS.
+    if (!rawValue.contains('://')) rawValue = 'https://$rawValue';
+
+    final uri = Uri.tryParse(rawValue);
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
       setState(() => _urlError = 'Введіть коректне HTTPS-посилання.');
       return;
     }
 
-    widget.onSelect(value);
+    widget.onSelect(rawValue);
     Navigator.pop(context);
+  }
+
+  Widget _buildUrlPreview() {
+    var value = _urlController.text.trim();
+    if (!value.contains('://')) value = 'https://$value';
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Попередній перегляд',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.network(
+            value,
+            key: ValueKey(value),
+            width: 96,
+            height: 96,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 96,
+              height: 96,
+              color: Colors.grey[200],
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -64,18 +108,17 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Виберіть з демо-галереї або підключіть камеру',
+                'Виберіть з галереї або вкажіть посилання',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 18),
-
               Row(
                 children: [
                   Expanded(
                     child: TextButton.icon(
                       onPressed: () {
-                        widget.onSelect(null); // камера — скинути аватарку
+                        widget.onSelect(null);
                         Navigator.pop(context);
                       },
                       style: TextButton.styleFrom(
@@ -86,9 +129,9 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                      icon: const Icon(Icons.delete_outline, size: 18),
                       label: const Text(
-                        'Камера',
+                        'Скинути',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -100,9 +143,7 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                   Expanded(
                     child: TextButton.icon(
                       onPressed: () {
-                        widget.onSelect(
-                          PhotoPickerDialog.demoPhotos[0],
-                        ); // галерея — перше демо-фото
+                        widget.onSelect(PhotoPickerDialog.demoPhotos[0]);
                         Navigator.pop(context);
                       },
                       style: TextButton.styleFrom(
@@ -126,7 +167,6 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -166,7 +206,7 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                 autocorrect: false,
                 decoration: InputDecoration(
                   labelText: 'Посилання на власний аватар',
-                  hintText: 'https://example.com/avatar.jpg',
+                  hintText: 'example.com/avatar.jpg',
                   prefixIcon: const Icon(Icons.link),
                   errorText: _urlError,
                   filled: true,
@@ -176,9 +216,13 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                   ),
                 ),
                 onChanged: (_) {
-                  if (_urlError != null) setState(() => _urlError = null);
+                  setState(() => _urlError = null);
                 },
               ),
+              if (_urlController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildUrlPreview(),
+              ],
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
@@ -197,7 +241,6 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                 ),
               ),
               const SizedBox(height: 8),
-
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -220,7 +263,6 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
   }
 }
 
-/// Показує діалог вибору фото аватара.
 Future<void> showPhotoPickerDialog({
   required BuildContext context,
   required ValueChanged<String?> onSelect,
