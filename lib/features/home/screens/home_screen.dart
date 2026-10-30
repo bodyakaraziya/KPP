@@ -1,19 +1,54 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/stat_card.dart';
-import '../../profile/screens/profile_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
 import '../../trips/screens/trip_detail_screen.dart';
 import '../../statistics/screens/statistics_screen.dart';
+import '../../auth/repositories/auth_repository.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigateTab;
 
   const HomeScreen({super.key, this.onNavigateTab});
 
-  static const String _userName = 'Богдан Каразія';
-  static const String _userInitial = 'Б';
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final AuthRepository _authRepository = AuthRepository();
+  StreamSubscription<User?>? _authSubscription;
+
+  String _userName = 'Користувач';
+  String? _avatarUrl;
+  String _userInitial = 'К';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateUser(_authRepository.currentUser);
+    _authSubscription = _authRepository.authStateChanges.listen((user) {
+      if (mounted) _updateUser(user);
+    });
+  }
+
+  void _updateUser(User? user) {
+    _userName = (user?.displayName ?? '').trim().isNotEmpty
+        ? user!.displayName!
+        : 'Користувач';
+    _avatarUrl = user?.photoURL;
+    _userInitial = _userName.isNotEmpty ? _userName[0].toUpperCase() : 'К';
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   void _openTackleScreen(BuildContext context) {
     Navigator.push(
@@ -26,6 +61,28 @@ class HomeScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+    );
+  }
+
+  Widget _buildAvatar() {
+    if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: AppColors.lightAmberBg,
+        backgroundImage: NetworkImage(_avatarUrl!),
+      );
+    }
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: AppColors.lightAmberBg,
+      child: Text(
+        _userInitial,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.accentAmber,
+        ),
+      ),
     );
   }
 
@@ -46,7 +103,7 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Шапка: Привітання + Аватар та статус синхронізації
+              // 1. Шапка: Привітання + Аватар
               _buildHeader(context),
               const SizedBox(height: 22),
 
@@ -76,7 +133,7 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Привіт, $_userName!',
                 style: TextStyle(
                   fontSize: 30,
@@ -98,55 +155,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: null,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.lightAmberBg,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  _userInitial,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.accentAmber,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.syncDotGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'Синхронізовано',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        _buildAvatar(),
       ],
     );
   }

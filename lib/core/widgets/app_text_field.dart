@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-class AppTextField extends StatelessWidget {
+class AppTextField extends StatefulWidget {
   final String label;
   final String hintText;
   final IconData? prefixIcon;
@@ -11,6 +11,7 @@ class AppTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final FormFieldValidator<String>? validator;
   final double? width;
+  final IconData? suffixIcon;
 
   const AppTextField({
     super.key,
@@ -22,7 +23,21 @@ class AppTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.validator,
     this.width,
+    this.suffixIcon,
   });
+
+  @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  bool _obscureText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.obscureText;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +45,7 @@ class AppTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          widget.label,
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -39,26 +54,39 @@ class AppTextField extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          width: width ?? double.infinity,
+          width: widget.width ?? double.infinity,
           child: TextFormField(
-            controller: controller,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            validator: validator,
+            controller: widget.controller,
+            obscureText: widget.obscureText ? _obscureText : false,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            keyboardType: widget.keyboardType,
+            validator: widget.validator,
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: AppColors.textPrimary,
             ),
             decoration: InputDecoration(
-              hintText: hintText,
+              hintText: widget.hintText,
               hintStyle: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w400,
                 color: Color(0xFF7B8B8A),
               ),
-              prefixIcon: prefixIcon != null
-                  ? Icon(prefixIcon, color: const Color(0xFF6B7B7A), size: 20)
+              prefixIcon: widget.prefixIcon != null
+                  ? Icon(widget.prefixIcon!, color: const Color(0xFF6B7B7A), size: 20)
+                  : null,
+              suffixIcon: widget.suffixIcon != null && widget.obscureText
+                  ? IconButton(
+                      icon: Icon(
+                        _obscureText ? Icons.visibility_off : Icons.visibility,
+                        color: const Color(0xFF6B7B7A),
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() => _obscureText = !_obscureText);
+                      },
+                    )
                   : null,
               filled: true,
               fillColor: Colors.white,
@@ -80,6 +108,26 @@ class AppTextField extends StatelessWidget {
                   width: 1.5,
                 ),
               ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1.2,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1.5,
+                ),
+              ),
+              errorStyle: const TextStyle(
+                fontSize: 12,
+                color: Colors.red,
+                height: 1.0,
+              ),
+              errorMaxLines: 1,
             ),
           ),
         ),

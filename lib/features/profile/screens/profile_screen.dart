@@ -1,9 +1,16 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_text_field.dart';
+import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/validators.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../auth/repositories/auth_repository.dart';
 import '../../tackle/screens/tackle_screen.dart';
-import '../../main/screens/main_screen.dart';
 import '../../statistics/screens/statistics_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,63 +21,76 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Дані користувача (за замовчуванням твої дані зі скріншоту, які можна змінювати у формі)
-  String _firstName = 'Богдан';
-  String _lastName = 'Каразія';
-  String _email = 'bohdan.karaziia.pz.2024@lpnu.ua';
-  String _phone = '+380 68 97 09 647';
+  final AuthRepository _authRepository = AuthRepository();
 
-  // Обране фото аватара (null = відображається кружечок з ініціалом)
-  String? _selectedAvatarUrl =
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
+  StreamSubscription<User?>? _authSubscription;
+
+  // Поточні дані користувача з Firebase Auth
+  String _firstName = '';
+  String _email = '';
+  String _phone = '+380 68 97 09 647';
+  String? _avatarUrl;
 
   // Стани розкриття секцій та редагування
   bool _isPersonalExpanded = false;
   bool _isEditingPersonal = false;
   bool _isPasswordFormOpen = false;
-
-  // Налаштування застосунку
+  bool _isMenuOpen = false;
   bool _isDarkTheme = false;
   String _selectedLang = 'УКР';
-  bool _isMenuOpen = false;
 
   // Контролери для форми редагування особистих даних
   late TextEditingController _firstNameCtrl;
-  late TextEditingController _lastNameCtrl;
   late TextEditingController _emailCtrl;
   late TextEditingController _phoneCtrl;
 
-  // 5 демо-фотографій для діалогу "Вибрати фото" відповідно до макета Figma
+  // 5 демо-фотографій для діалогу "Вибрати фото"
   static const List<String> _demoPhotos = [
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
     'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80',
     'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
     'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=600&q=80',
     'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
   ];
 
   @override
   void initState() {
     super.initState();
+    _syncUser(_authRepository.currentUser);
     _firstNameCtrl = TextEditingController(text: _firstName);
-    _lastNameCtrl = TextEditingController(text: _lastName);
     _emailCtrl = TextEditingController(text: _email);
     _phoneCtrl = TextEditingController(text: _phone);
+    _authSubscription = _authRepository.authStateChanges.listen((user) {
+      if (!mounted) return;
+      _syncUser(user);
+      _firstNameCtrl.text = _firstName;
+      _emailCtrl.text = _email;
+      _phoneCtrl.text = _phone;
+    });
   }
 
-  @override
-  void dispose() {
-    _firstNameCtrl.dispose();
-    _lastNameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    super.dispose();
+  void _syncUser(User? user) {
+    _firstName = (user?.displayName ?? '').trim().isNotEmpty
+        ? user!.displayName!
+        : 'Користувач';
+    _email = user?.email ?? '';
+    _avatarUrl = user?.photoURL;
   }
-
-  String get _fullName => '$_firstName $_lastName'.trim();
 
   String get _initial =>
       _firstName.isNotEmpty ? _firstName[0].toUpperCase() : 'А';
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _firstNameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _currentPasswordCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +117,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: NotificationListener<ScrollStartNotification>(
                     onNotification: (_) {
-                      // Якщо користувач почав гортати список — закриваємо меню
                       if (_isMenuOpen) {
                         setState(() => _isMenuOpen = false);
                       }
@@ -119,7 +138,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton.icon(
-                              onPressed: () {
+                              onPressed: () async {
+                                await _authRepository.signOut();
+                                if (!mounted) return;
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
@@ -156,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
 
-            // 2. Прозорий перехоплювач натискань поза меню (закриває меню при кліку повз)
+            // 2. Прозорий перехоплювач натискань поза меню
             if (_isMenuOpen)
               Positioned.fill(
                 child: GestureDetector(
@@ -166,11 +187,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-            // 3. Випадаюче меню, вирівняне рівно під кнопкою (right: 20, top: 68)
+            // 3. Випадаюче меню
             if (_isMenuOpen)
               Positioned(
-                top: 68.0, // Рівно під кнопкою 44х44 з урахуванням верхнього відступу 16
-                right: 20.0, // Рівно по правому краю кнопки (а не прилипле до краю екрана)
+                top: 68.0,
+                right: 20.0,
                 width: 220,
                 child: Material(
                   elevation: 12,
@@ -244,10 +265,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       height: 70.0,
       child: Stack(
         children: [
-          // Header content (title and subtitle)
           Positioned(
             left: 0,
-            right: 60, // Leave space for menu button
+            right: 60,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -268,7 +288,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          // Menu button
           Positioned(
             right: 0,
             child: GestureDetector(
@@ -286,29 +305,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   duration: const Duration(milliseconds: 300),
                   transitionBuilder: (Widget child, Animation<double> animation) {
                     return RotationTransition(
-                      turns: Tween<double>(
-                        begin: 0.0,
-                        end: 0.5,
-                      ).animate(animation),
+                      turns: Tween<double>(begin: 0.0, end: 0.5).animate(animation),
                       child: child,
                     );
                   },
                   child: _isMenuOpen
-                      ? const Icon(
-                          Icons.clear,
-                          color: AppColors.textPrimary,
-                          size: 22,
-                        )
-                      : const Icon(
-                          Icons.menu_rounded,
-                          color: AppColors.textPrimary,
-                          size: 22,
-                        ),
+                      ? const Icon(Icons.clear, color: AppColors.textPrimary, size: 22)
+                      : const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 22),
                 ),
               ),
             ),
           ),
-          // Menu panel (when open)
         ],
       ),
     );
@@ -344,35 +351,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: ClipOval(
-                        child: _selectedAvatarUrl != null
+                        child: _avatarUrl != null && _avatarUrl!.isNotEmpty
                             ? Image.network(
-                                _selectedAvatarUrl!,
+                                _avatarUrl!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  color: AppColors.lightAmberBg,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _initial,
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.accentAmber,
-                                    ),
-                                  ),
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _avatarPlaceholder(),
                               )
-                            : Container(
-                                color: AppColors.lightAmberBg,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  _initial,
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.accentAmber,
-                                  ),
-                                ),
-                              ),
+                            : _avatarPlaceholder(),
                       ),
                     ),
                     Positioned(
@@ -404,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _fullName,
+                      _firstName,
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
@@ -440,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(color: AppColors.cardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // Три колонки статистики: 18 виїзди | 86,4 кг улов | 12 видів
+          // Три колонки статистики
           IntrinsicHeight(
             child: Row(
               children: [
@@ -465,6 +451,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _avatarPlaceholder() {
+    return Container(
+      color: AppColors.lightAmberBg,
+      alignment: Alignment.center,
+      child: Text(
+        _initial,
+        style: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          color: AppColors.accentAmber,
+        ),
       ),
     );
   }
@@ -544,7 +545,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Text(
                             _isEditingPersonal
                                 ? 'Редагування активне'
-                                : '$_fullName · $_email',
+                                : '$_firstName · $_email',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -585,7 +586,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildPersonalReadOnlyView() {
     return Column(
       children: [
-        _buildInfoRow(Icons.person_outline, _fullName),
+        _buildInfoRow(Icons.person_outline, _firstName),
         const Divider(color: Color(0xFFEEF3F1), height: 24),
         _buildInfoRow(Icons.mail_outline, _email),
         const Divider(color: Color(0xFFEEF3F1), height: 24),
@@ -599,7 +600,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () {
               setState(() {
                 _firstNameCtrl.text = _firstName;
-                _lastNameCtrl.text = _lastName;
                 _emailCtrl.text = _email;
                 _phoneCtrl.text = _phone;
                 _isEditingPersonal = true;
@@ -649,22 +649,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 14),
 
-        _buildFieldLabel('Прізвище'),
-        _buildInputField(
-          controller: _lastNameCtrl,
-          prefixIcon: Icons.person_outline,
-        ),
-        const SizedBox(height: 14),
-
         _buildFieldLabel('Email'),
         _buildInputField(
           controller: _emailCtrl,
           prefixIcon: Icons.mail_outline,
+          keyboardType: TextInputType.emailAddress,
         ),
         const SizedBox(height: 14),
 
         _buildFieldLabel('Телефон'),
-        _buildInputField(controller: _phoneCtrl),
+        _buildInputField(
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+        ),
         const SizedBox(height: 18),
 
         Row(
@@ -673,21 +670,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _firstName = _firstNameCtrl.text.trim();
-                      _lastName = _lastNameCtrl.text.trim();
-                      _email = _emailCtrl.text.trim();
-                      _phone = _phoneCtrl.text.trim();
-                      _isEditingPersonal = false;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Особисті дані оновлено!'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
+                  onPressed: _savePersonalData,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryTeal,
                     foregroundColor: Colors.white,
@@ -729,7 +712,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _savePersonalData() async {
+    final name = _firstNameCtrl.text.trim();
+    if (name.isEmpty) {
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Будь ласка, введіть ім\'я',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      await _authRepository.updateProfile(displayName: name);
+      if (!mounted) return;
+      setState(() {
+        _firstName = name;
+        _email = _emailCtrl.text.trim();
+        _phone = _phoneCtrl.text.trim();
+        _isEditingPersonal = false;
+      });
+      showAppSnackBar(
+        context,
+        message: 'Особисті дані оновлено!',
+        isError: false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: authErrorMessage(e),
+        isError: true,
+      );
+    }
+  }
+
+  // --- 4. КАРТКА "ПАРОЛЬ" ---
   Widget _buildPasswordCard() {
+    final user = _authRepository.currentUser;
+    final hasPassword = user?.email != null;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -804,47 +828,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (!hasPassword) ...[
+                    const Text(
+                      'Для облікового запису без пароля використовуйте '
+                      'відновлення паролю через пошту.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   _buildFieldLabel('Поточний пароль'),
-                  _buildInputFieldWithToggle(
+                  AppTextField(
+                    label: 'Поточний пароль',
                     hintText: 'Ваш пароль',
-                    labelText: 'Поточний пароль',
+                    prefixIcon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                    suffixIcon: Icons.visibility_off,
+                    validator: requiredValidator(fieldName: 'поточний пароль'),
                   ),
                   const SizedBox(height: 14),
 
                   _buildFieldLabel('Новий пароль'),
-                  _buildInputFieldWithToggle(
+                  AppTextField(
+                    label: 'Новий пароль',
                     hintText: 'Щонайменше 8 символів',
-                    labelText: 'Новий пароль',
+                    prefixIcon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                    suffixIcon: Icons.visibility_off,
+                    validator: passwordValidator(minLength: 8),
                   ),
                   const SizedBox(height: 14),
 
                   _buildFieldLabel('Повторіть пароль'),
-                  _buildInputFieldWithToggle(
+                  AppTextField(
+                    label: 'Повторіть пароль',
                     hintText: 'Паролі мають збігатися',
-                    labelText: 'Повторіть пароль',
+                    prefixIcon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                    suffixIcon: Icons.visibility_off,
+                    validator: confirmPasswordValidator(
+                      () => _newPasswordCtrl.text,
+                    ),
                   ),
                   const SizedBox(height: 18),
 
                   SizedBox(
                     width: double.infinity,
                     height: 48,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Пароль успішно оновлено!'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
+                    child: ElevatedButton.icon(
+                      onPressed: _changePassword,
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryTeal,
                         foregroundColor: Colors.white,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text(
                         'Оновити пароль',
                         style: TextStyle(
                           fontSize: 15,
@@ -857,17 +902,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to password recovery screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Функція відновлення паролю буде додана пізніше',
-                            ),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                      onPressed: _showForgotPasswordBottomSheet,
                       child: const Text(
                         'Забули пароль?',
                         style: TextStyle(
@@ -886,7 +921,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- 4. КАРТКА "НАЛАШТУВАННЯ ЗАСТОСУНКУ" ---
+  final TextEditingController _currentPasswordCtrl = TextEditingController();
+  final TextEditingController _newPasswordCtrl = TextEditingController();
+  final TextEditingController _confirmPasswordCtrl = TextEditingController();
+
+  Future<void> _changePassword() async {
+    final current = _currentPasswordCtrl.text;
+    final newPassword = _newPasswordCtrl.text;
+
+    if (current.isEmpty || newPassword.isEmpty) {
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Будь ласка, заповніть всі поля',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      await _authRepository.updatePassword(
+        currentPassword: current,
+        newPassword: newPassword,
+      );
+      if (!mounted) return;
+      _currentPasswordCtrl.clear();
+      _newPasswordCtrl.clear();
+      _confirmPasswordCtrl.clear();
+      setState(() => _isPasswordFormOpen = false);
+      showAppSnackBar(
+        context,
+        message: 'Пароль успішно оновлено!',
+        isError: false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: authErrorMessage(e),
+        isError: true,
+      );
+    }
+  }
+
+  // --- 5. КАРТКА "НАЛАШТУВАННЯ ЗАСТОСУНКУ" ---
   Widget _buildAppSettingsCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -928,7 +1007,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 10),
 
-          // Картки вибору теми: Світла / Темна
           Row(
             children: [
               Expanded(
@@ -952,7 +1030,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(color: Color(0xFFEEF3F1), height: 1),
           const SizedBox(height: 14),
 
-          // Рядок вибору мови: УКР | ENG
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1009,7 +1086,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
-            // Прев'ю макета теми
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -1069,156 +1145,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- 4. КАРТКА "НАЛАШТУВАННЯ ЗАСТОСУНКУ" (КОМПАКТНА ВЕРСІЯ) ---
-  // Widget _buildAppSettingsCard() {
-  //   return Container(
-  //     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-  //     decoration: BoxDecoration(
-  //       color: Colors.white,
-  //       borderRadius: BorderRadius.circular(22),
-  //       border: Border.all(color: AppColors.cardBorder, width: 1.2),
-  //     ),
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         // 1. Вибір теми (Світла / Темна)
-  //         Row(
-  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //           children: [
-  //             Row(
-  //               children: [
-  //                 Icon(
-  //                   _isDarkTheme
-  //                       ? Icons.nightlight_round_outlined
-  //                       : Icons.wb_sunny_outlined,
-  //                   color: AppColors.primaryTeal,
-  //                   size: 22,
-  //                 ),
-  //                 const SizedBox(width: 12),
-  //                 const Text(
-  //                   'Тема',
-  //                   style: TextStyle(
-  //                     fontSize: 15,
-  //                     fontWeight: FontWeight.w700,
-  //                     color: AppColors.textPrimary,
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //             Container(
-  //               padding: const EdgeInsets.all(4),
-  //               decoration: BoxDecoration(
-  //                 color: const Color(0xFFE9EFED),
-  //                 borderRadius: BorderRadius.circular(12),
-  //               ),
-  //               child: Row(
-  //                 children: [
-  //                   _buildThemeSegment(
-  //                     label: 'Світла',
-  //                     icon: Icons.wb_sunny_outlined,
-  //                     isSelected: !_isDarkTheme,
-  //                     onTap: () => setState(() => _isDarkTheme = false),
-  //                   ),
-  //                   _buildThemeSegment(
-  //                     label: 'Темна',
-  //                     icon: Icons.nightlight_round_outlined,
-  //                     isSelected: _isDarkTheme,
-  //                     onTap: () => setState(() => _isDarkTheme = true),
-  //                   ),
-  //                 ],
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //         const SizedBox(height: 12),
-  //         const Divider(color: Color(0xFFEEF3F1), height: 1),
-  //         const SizedBox(height: 12),
-
-  //         // 2. Вибір мови (УКР / ENG)
-  //         Row(
-  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //           children: [
-  //             const Row(
-  //               children: [
-  //                 Icon(Icons.language, color: AppColors.primaryTeal, size: 22),
-  //                 SizedBox(width: 12),
-  //                 Text(
-  //                   'Мова',
-  //                   style: TextStyle(
-  //                     fontSize: 15,
-  //                     fontWeight: FontWeight.w700,
-  //                     color: AppColors.textPrimary,
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //             Container(
-  //               padding: const EdgeInsets.all(4),
-  //               decoration: BoxDecoration(
-  //                 color: const Color(0xFFE9EFED),
-  //                 borderRadius: BorderRadius.circular(12),
-  //               ),
-  //               child: Row(
-  //                 children: [
-  //                   _buildLangSegment('УКР'),
-  //                   _buildLangSegment('ENG'),
-  //                 ],
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  // // Допоміжний віджет для сегмента теми
-  // Widget _buildThemeSegment({
-  //   required String label,
-  //   required IconData icon,
-  //   required bool isSelected,
-  //   required VoidCallback onTap,
-  // }) {
-  //   return GestureDetector(
-  //     onTap: onTap,
-  //     child: AnimatedContainer(
-  //       duration: const Duration(milliseconds: 150),
-  //       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-  //       decoration: BoxDecoration(
-  //         color: isSelected ? Colors.white : Colors.transparent,
-  //         borderRadius: BorderRadius.circular(9),
-  //         boxShadow: isSelected
-  //             ? [
-  //                 BoxShadow(
-  //                   color: Colors.black.withValues(alpha: 0.05),
-  //                   blurRadius: 4,
-  //                   offset: const Offset(0, 2),
-  //                 )
-  //               ]
-  //             : null,
-  //       ),
-  //       child: Row(
-  //         children: [
-  //           Icon(
-  //             icon,
-  //             size: 14,
-  //             color: isSelected ? AppColors.primaryTeal : AppColors.textSecondary,
-  //           ),
-  //           const SizedBox(width: 4),
-  //           Text(
-  //             label,
-  //             style: TextStyle(
-  //               fontSize: 12,
-  //               fontWeight: FontWeight.w800,
-  //               color: isSelected ? AppColors.primaryTeal : AppColors.textSecondary,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildLangSegment(String lang) {
     final bool isSelected = _selectedLang == lang;
     return GestureDetector(
@@ -1245,7 +1171,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showPickPhotoDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (ctx) {
         return Dialog(
           backgroundColor: Colors.white,
@@ -1282,7 +1208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: TextButton.icon(
                         onPressed: () {
-                          setState(() => _selectedAvatarUrl = null);
+                          setState(() => _avatarUrl = null);
                           Navigator.pop(ctx);
                         },
                         style: TextButton.styleFrom(
@@ -1307,7 +1233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: TextButton.icon(
                         onPressed: () {
-                          setState(() => _selectedAvatarUrl = _demoPhotos[0]);
+                          setState(() => _avatarUrl = _demoPhotos[0]);
                           Navigator.pop(ctx);
                         },
                         style: TextButton.styleFrom(
@@ -1337,8 +1263,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   runSpacing: 10,
                   children: _demoPhotos.map((url) {
                     return GestureDetector(
-                      onTap: () {
-                        setState(() => _selectedAvatarUrl = url);
+                      onTap: () async {
+                        setState(() => _avatarUrl = url);
+                        try {
+                          await _authRepository.updateProfile(photoURL: url);
+                        } catch (_) {}
                         Navigator.pop(ctx);
                       },
                       child: ClipRRect(
@@ -1388,7 +1317,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- ДОПОМІЖНІ ВІДЖЕТИ ПОЛІВ ---
+  // --- БОТТОМ-ШІТ "ЗАБУЛИ ПАРОЛЬ" (лише поле Email) ---
+  void _showForgotPasswordBottomSheet() {
+    final emailCtrl = TextEditingController(text: _email);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (ctx) {
+        return Container(
+          margin: const EdgeInsets.only(top: 50),
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Сірий індикатор зверху (drag handle)
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBorder,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              Text(
+                'Скидання паролю',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Введіть свою електронну пошту, і ми надішлемо посилання для скидання паролю',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              AppTextField(
+                label: 'Email',
+                hintText: 'you@example.com',
+                prefixIcon: Icons.mail_outline,
+                keyboardType: TextInputType.emailAddress,
+                controller: emailCtrl,
+                validator: emailValidator(),
+              ),
+              const SizedBox(height: 22),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: AppButton(
+                  text: 'Надіслати посилання',
+                  onPressed: () async {
+                    final email = emailCtrl.text.trim();
+                    if (email.isEmpty ||
+                        !_emailRegex.hasMatch(email)) {
+                      showAppSnackBar(
+                        context,
+                        title: 'Помилка',
+                        message: 'Введіть коректну електронну пошту',
+                        isError: true,
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx);
+                    try {
+                      await _authRepository.sendPasswordResetEmail(email);
+                      if (!mounted) return;
+                      showAppSnackBar(
+                        context,
+                        message:
+                            'Посилання для скидання паролю надіслано на вашу пошту.',
+                        isError: false,
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      showAppSnackBar(
+                        context,
+                        title: 'Помилка відновлення пароля',
+                        message: authErrorMessage(e),
+                        isError: true,
+                      );
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    'Скасувати',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryTeal,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
   Widget _buildFieldLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -1409,11 +1463,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? hintText,
     IconData? prefixIcon,
     bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextFormField(
       controller: controller,
       initialValue: controller == null ? initialValue : null,
       obscureText: obscureText,
+      keyboardType: keyboardType,
       style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,
@@ -1447,78 +1503,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildInputFieldWithToggle({
-    String? initialValue,
-    String? hintText,
-    String? labelText,
-    bool obscureText = true,
-  }) {
-    bool _obscureText = obscureText;
-
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return TextFormField(
-          initialValue: initialValue,
-          obscureText: _obscureText,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            labelText: labelText,
-            hintStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
-            ),
-            labelStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-            prefixIcon: const Icon(
-              Icons.lock_outline,
-              color: AppColors.textSecondary,
-            ),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureText ? Icons.visibility_off : Icons.visibility,
-                color: AppColors.textSecondary,
-              ),
-              onPressed: () {
-                setState(() {
-                  _obscureText = !_obscureText;
-                });
-              },
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: AppColors.cardBorder,
-                width: 1.2,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: AppColors.primaryTeal,
-                width: 1.5,
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 

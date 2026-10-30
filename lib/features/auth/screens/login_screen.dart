@@ -4,7 +4,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_background.dart';
+import '../../../core/icons/google_logo_icon.dart';
 import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/validators.dart';
 import '../../main/screens/main_screen.dart';
 import '../repositories/auth_repository.dart';
 import 'forgot_password_screen.dart';
@@ -41,7 +43,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      if (!mounted) return;
+
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Будь ласка, виправте помилки у формі',
+        isError: true,
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -63,9 +75,11 @@ class _LoginScreenState extends State<LoginScreen> {
       showAppSnackBar(
         context,
         title: 'Помилка авторизації',
-        message: e.toString().replaceAll('Exception: ', ''),
+        message: authErrorMessage(e),
         isError: true,
       );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -83,11 +97,11 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
+      showAppSnackBar(
+        context,
+        title: 'Помилка входу через Google',
+        message: authErrorMessage(e),
+        isError: true,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -125,15 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
               controller: _emailController,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Будь ласка, введіть Email';
-                }
-                if (!value.contains('@') || !value.contains('.')) {
-                  return 'Введіть коректний Email';
-                }
-                return null;
-              },
+              validator: emailValidator(),
             ),
             const SizedBox(height: 18),
 
@@ -142,13 +148,9 @@ class _LoginScreenState extends State<LoginScreen> {
               hintText: 'Щонайменше 8 символів',
               prefixIcon: Icons.lock_outline_rounded,
               obscureText: true,
+              suffixIcon: Icons.visibility_off,
               controller: _passwordController,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Будь ласка, введіть пароль';
-                }
-                return null;
-              },
+              validator: passwordValidator(),
             ),
             const SizedBox(height: 12),
 
@@ -203,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                icon: const Icon(Icons.g_mobiledata, size: 28),
+                icon: const GoogleLogoIcon(size: 22),
                 label: const Text(
                   'Увійти через Google',
                   style: TextStyle(

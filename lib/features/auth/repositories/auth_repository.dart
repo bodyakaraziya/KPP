@@ -7,7 +7,11 @@ class AuthRepository {
 
   AuthRepository({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
     : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-      _googleSignIn = googleSignIn ?? GoogleSignIn();
+      _googleSignIn = googleSignIn ??
+          GoogleSignIn(
+            serverClientId:
+                '198956360446-6g58p1kgqho36lm2laup9lebhlscff8p.apps.googleusercontent.com',
+          );
 
   User? get currentUser => _firebaseAuth.currentUser;
 
@@ -53,6 +57,7 @@ class AuthRepository {
   // Вхід через Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      await _googleSignIn.signOut(); // Закрити поточний сеанс Google, щоб завжди з'являлася панель вибору акаунту
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null; // Скасовано користувачем
 
@@ -72,10 +77,34 @@ class AuthRepository {
     }
   }
 
-  // Скидання пароля
+  // Скидання пароля — лист містить посилання, яке відкриє саме додаток
   Future<void> sendPasswordResetEmail(String email) async {
     try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      final actionCodeSettings = ActionCodeSettings(
+        url: 'fishlog://reset-password',
+        handleCodeInApp: true,
+        androidPackageName: 'com.example.fishlog',
+        androidInstallApp: false,
+      );
+      await _firebaseAuth.sendPasswordResetEmail(
+        email: email,
+        actionCodeSettings: actionCodeSettings,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  // Підтвердження скидання паролю за кодом із листа
+  Future<void> confirmPasswordReset({
+    required String oobCode,
+    required String newPassword,
+  }) async {
+    try {
+      await _firebaseAuth.confirmPasswordReset(
+        code: oobCode,
+        newPassword: newPassword,
+      );
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));
     }
@@ -142,6 +171,20 @@ class AuthRepository {
         return 'Цей обліковий запис було заблоковано.';
       case 'too-many-requests':
         return 'Забагато невдалих спроб. Зачекайте декілька хвилин.';
+      case 'invalid-credential':
+        return 'Неправильний Email або пароль.';
+      case 'account-exists-with-different-credential':
+        return 'Обліковий запис вже існує з іншим методом входу.';
+      case 'credential-already-in-use':
+        return 'Ці облікові дані вже використовуються.';
+      case 'operation-not-allowed':
+        return 'Цей метод входу не дозволений.';
+      case 'invalid-verification-code':
+        return 'Невірний код підтвердження.';
+      case 'invalid-verification-id':
+        return 'Некоректний ідентифікатор підтвердження.';
+      case 'network-request-failed':
+        return 'Помилка мережі. Перевірте підключення до інтернету.';
       default:
         return 'Сталася помилка автентифікації. Спробуйте пізніше.';
     }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/validators.dart';
 import '../../../core/widgets/auth_background.dart';
 import '../../main/screens/main_screen.dart';
 import '../repositories/auth_repository.dart';
@@ -43,7 +45,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      if (!mounted) return;
+
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Будь ласка, виправте помилки у формі',
+        isError: true,
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -64,11 +76,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
+      showAppSnackBar(
+        context,
+        title: 'Помилка реєстрації',
+        message: authErrorMessage(e),
+        isError: true,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -81,156 +93,132 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Form(
         key: _formKey,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: _isLoading ? null : () => Navigator.pop(context),
-              borderRadius: BorderRadius.circular(8),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.chevron_left,
-                      color: AppColors.primaryTeal,
-                      size: 20,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InkWell(
+                onTap: _isLoading ? null : () => Navigator.pop(context),
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.chevron_left,
+                        color: AppColors.primaryTeal,
+                        size: 20,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Назад до входу',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryTeal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              const Text(
+                'Створіть акаунт',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Почніть зберігати свої рибальські історії',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 22),
+
+              AppTextField(
+                label: "Ім'я",
+                hintText: "Ваше ім'я",
+                prefixIcon: Icons.person_outline,
+                controller: _nameController,
+                validator: requiredValidator(fieldName: "ім'я"),
+              ),
+              const SizedBox(height: 16),
+
+              AppTextField(
+                label: 'Email',
+                hintText: 'you@example.com',
+                prefixIcon: Icons.mail_outline,
+                keyboardType: TextInputType.emailAddress,
+                controller: _emailController,
+                validator: emailValidator(),
+              ),
+              const SizedBox(height: 16),
+
+              AppTextField(
+                label: 'Пароль',
+                hintText: 'Щонайменше 8 символів',
+                prefixIcon: Icons.lock_outline_rounded,
+                obscureText: true,
+                suffixIcon: Icons.visibility_off,
+                controller: _passwordController,
+                validator: passwordValidator(minLength: 8),
+              ),
+              const SizedBox(height: 16),
+
+              AppTextField(
+                label: 'Підтвердження пароля',
+                hintText: 'Повторіть пароль',
+                prefixIcon: Icons.lock_outline_rounded,
+                obscureText: true,
+                suffixIcon: Icons.visibility_off,
+                controller: _confirmPasswordController,
+                validator: confirmPasswordValidator(() => _passwordController.text),
+              ),
+              const SizedBox(height: 22),
+
+              _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryTeal,
+                      ),
+                    )
+                  : AppButton(
+                      text: 'Зареєструватися',
+                      onPressed: _handleRegister,
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Назад до входу',
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Вже маєте акаунт? ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _isLoading ? null : () => Navigator.pop(context),
+                    child: const Text(
+                      'Увійти',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primaryTeal,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-
-            const Text(
-              'Створіть акаунт',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Почніть зберігати свої рибальські історії',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 22),
-
-            AppTextField(
-              label: "Ім'я",
-              hintText: "Ваше ім'я",
-              prefixIcon: Icons.person_outline,
-              controller: _nameController,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return "Будь ласка, введіть ім'я";
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            AppTextField(
-              label: 'Email',
-              hintText: 'you@example.com',
-              prefixIcon: Icons.mail_outline,
-              keyboardType: TextInputType.emailAddress,
-              controller: _emailController,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Будь ласка, введіть Email';
-                }
-                if (!value.contains('@') || !value.contains('.')) {
-                  return 'Введіть коректний Email';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            AppTextField(
-              label: 'Пароль',
-              hintText: 'Щонайменше 8 символів',
-              prefixIcon: Icons.lock_outline_rounded,
-              obscureText: true,
-              controller: _passwordController,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Будь ласка, введіть пароль';
-                }
-                if (value.length < 8) {
-                  return 'Пароль має бути щонайменше 8 символів';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            AppTextField(
-              label: 'Підтвердження пароля',
-              hintText: 'Повторіть пароль',
-              prefixIcon: Icons.lock_outline_rounded,
-              obscureText: true,
-              controller: _confirmPasswordController,
-              validator: (value) {
-                if (value != _passwordController.text) {
-                  return 'Паролі не збігаються';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 22),
-
-            _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primaryTeal,
-                    ),
-                  )
-                : AppButton(
-                    text: 'Зареєструватися',
-                    onPressed: _handleRegister,
-                  ),
-            const SizedBox(height: 20),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Вже маєте акаунт? ',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _isLoading ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    'Увійти',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryTeal,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ], 
+          ),
         ),
-      ),
     );
   }
 }

@@ -4,7 +4,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_background.dart';
+import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/validators.dart';
 import '../repositories/auth_repository.dart';
+import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   final AuthRepository? authRepository;
@@ -35,7 +38,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handleResetPassword() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      if (!mounted) return;
+
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Будь ласка, виправте помилки у формі',
+        isError: true,
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -46,23 +59,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Інструкції для відновлення пароля надіслано на ваш Email!',
-          ),
-          backgroundColor: AppColors.primaryTeal,
+      showAppSnackBar(
+        context,
+        message:
+            'Посилання для скидання пароля надіслано на вашу пошту. Відкрийте лист і перейдіть за посиланням — воно відкриє додаток.',
+        isError: false,
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(authRepository: _authRepository),
         ),
       );
-      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
+      showAppSnackBar(
+        context,
+        title: 'Помилка відновлення пароля',
+        message: authErrorMessage(e),
+        isError: true,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -117,7 +133,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Введіть вашу електронну пошту, і ми надішлемо посилання для скидання пароля',
+              'Введіть вашу електронну пошту, і ми надішлемо посилання, яке відкриє додаток для скидання пароля',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -132,15 +148,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               prefixIcon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
               controller: _emailController,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Будь ласка, введіть Email';
-                }
-                if (!value.contains('@') || !value.contains('.')) {
-                  return 'Введіть коректний Email';
-                }
-                return null;
-              },
+              validator: emailValidator(),
             ),
             const SizedBox(height: 24),
 

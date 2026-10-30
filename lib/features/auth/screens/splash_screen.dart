@@ -4,9 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'login_screen.dart';
+import 'reset_password_screen.dart';
+import '../../main/screens/main_screen.dart';
+import '../repositories/auth_repository.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final String? initialOobCode;
+
+  const SplashScreen({super.key, this.initialOobCode});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -32,18 +37,31 @@ class _SplashScreenState extends State<SplashScreen> {
         _progress += 0.01;
         if (_progress >= 1.0) {
           _progressTimer?.cancel();
-          _navigateToLogin();
+          _navigateAfterSplash();
         }
       });
     });
   }
 
-  void _navigateToLogin() {
+  void _navigateAfterSplash() {
     if (!mounted) return;
     SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final repo = AuthRepository();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => widget.initialOobCode != null &&
+                  widget.initialOobCode!.isNotEmpty
+              ? ResetPasswordScreen(
+                  authRepository: repo,
+                  oobCode: widget.initialOobCode!,
+                )
+              : repo.currentUser != null
+                  ? const MainScreen()
+                  : const LoginScreen(),
+        ),
       );
     });
   }
@@ -57,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _navigateToLogin,
+      onTap: _navigateAfterSplash,
       child: Scaffold(
         body: Container(
           width: double.infinity,
