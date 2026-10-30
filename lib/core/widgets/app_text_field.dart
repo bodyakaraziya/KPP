@@ -6,11 +6,12 @@ class AppTextField extends StatefulWidget {
   final String label;
   final String hintText;
   final IconData? prefixIcon;
-  final bool obscureText; // Чи це взагалі поле з паролем
+  final bool obscureText;
   final TextEditingController? controller;
   final TextInputType keyboardType;
   final FormFieldValidator<String>? validator;
   final double? width;
+  final IconData? suffixIcon;
 
   const AppTextField({
     super.key,
@@ -22,6 +23,7 @@ class AppTextField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.validator,
     this.width,
+    this.suffixIcon,
   });
 
   @override
@@ -29,14 +31,12 @@ class AppTextField extends StatefulWidget {
 }
 
 class _AppTextFieldState extends State<AppTextField> {
-  // Змінна стану: чи прихований текст прямо зараз
-  late bool _isObscured;
+  bool _obscureText = false;
 
   @override
   void initState() {
     super.initState();
-    // Початкове значення беремо з параметра віджета (widget.obscureText)
-    _isObscured = widget.obscureText;
+    _obscureText = widget.obscureText;
   }
 
   @override
@@ -45,7 +45,7 @@ class _AppTextFieldState extends State<AppTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.label, // У State звертаємося до полів віджета через widget.
+          widget.label,
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -57,7 +57,8 @@ class _AppTextFieldState extends State<AppTextField> {
           width: widget.width ?? double.infinity,
           child: TextFormField(
             controller: widget.controller,
-            obscureText: _isObscured, // Використовуємо наш динамічний стан
+            obscureText: widget.obscureText ? _obscureText : false,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             keyboardType: widget.keyboardType,
             validator: widget.validator,
             style: const TextStyle(
@@ -73,31 +74,20 @@ class _AppTextFieldState extends State<AppTextField> {
                 color: Color(0xFF7B8B8A),
               ),
               prefixIcon: widget.prefixIcon != null
-                  ? Icon(
-                      widget.prefixIcon,
-                      color: const Color(0xFF6B7B7A),
-                      size: 20,
-                    )
+                  ? Icon(widget.prefixIcon!, color: const Color(0xFF6B7B7A), size: 20)
                   : null,
-
-              // 👁️ ІКОНКА ОКА СПРАВА:
-              suffixIcon: widget.obscureText
+              suffixIcon: widget.suffixIcon != null && widget.obscureText
                   ? IconButton(
                       icon: Icon(
-                        _isObscured
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                        _obscureText ? Icons.visibility_off : Icons.visibility,
                         color: const Color(0xFF6B7B7A),
                         size: 20,
                       ),
                       onPressed: () {
-                        setState(() {
-                          _isObscured = !_isObscured; // Перемикаємо стан
-                        });
+                        setState(() => _obscureText = !_obscureText);
                       },
                     )
-                  : null, // Якщо це звичайне поле (не пароль), suffixIcon відсутній
-
+                  : null,
               filled: true,
               fillColor: Colors.white,
               contentPadding: const EdgeInsets.symmetric(
@@ -118,6 +108,26 @@ class _AppTextFieldState extends State<AppTextField> {
                   width: 1.5,
                 ),
               ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1.2,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1.5,
+                ),
+              ),
+              errorStyle: const TextStyle(
+                fontSize: 12,
+                color: Colors.red,
+                height: 1.0,
+              ),
+              errorMaxLines: 1,
             ),
           ),
         ),

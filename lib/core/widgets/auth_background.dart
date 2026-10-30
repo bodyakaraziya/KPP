@@ -9,12 +9,10 @@ class AuthBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
         systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            Brightness.light, // ⚪ БІЛІ кнопки на темному градієнті
+        systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
       ),
       child: Scaffold(
@@ -22,8 +20,8 @@ class AuthBackground extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // Фонове фото туманного лісу та водойми
-            Image.asset(
-              'assets/images/tuman_forest.avif',
+            Image.network(
+              'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(color: Colors.grey[300]);
@@ -47,7 +45,6 @@ class AuthBackground extends StatelessWidget {
 
             // Контент: Логотип у шапці + Біла картка форми
             SafeArea(
-              bottom: false,
               child: CustomScrollView(
                 slivers: [
                   SliverFillRemaining(

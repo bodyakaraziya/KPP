@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "198956360446",
+    "project_id": "fishlog-cbb8f",
+    "storage_bucket": "fishlog-cbb8f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:198956360446:android:e733973f992ce448c5bbaf",
+        "android_client_info": {
+          "package_name": "com.example.fishlog"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "198956360446-mqekov4lnmn5gsda5fsnua8ct5j9gpo0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fishlog",
+            "certificate_hash": "555f879bcf249221fecccd0455846c94d53523ce"
+          }
+        },
+        {
+          "client_id": "198956360446-6g58p1kgqho36lm2laup9lebhlscff8p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCt9pGcqxOZ2CMEquGwiQ_fYuIp83ixAzQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "198956360446-6g58p1kgqho36lm2laup9lebhlscff8p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

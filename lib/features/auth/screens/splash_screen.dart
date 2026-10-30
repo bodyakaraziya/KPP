@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-
 import 'package:flutter/services.dart';
 
 import 'login_screen.dart';
+import '../../main/screens/main_screen.dart';
+import '../repositories/auth_repository.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -36,18 +37,25 @@ class _SplashScreenState extends State<SplashScreen> {
         _progress += 0.01;
         if (_progress >= 1.0) {
           _progressTimer?.cancel();
-          _navigateToLogin();
+          _navigateAfterSplash();
         }
       });
     });
   }
 
-  void _navigateToLogin() {
+  void _navigateAfterSplash() {
     if (!mounted) return;
     SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final repo = AuthRepository();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => repo.currentUser != null
+              ? const MainScreen()
+              : const LoginScreen(),
+        ),
       );
     });
   }
@@ -61,17 +69,14 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            Brightness.light, // ⚪ Білий годинник і батарея вгорі
         systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            Brightness.light, // ⚪ Білі системні кнопки внизу
+        systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
       ),
       child: GestureDetector(
-        onTap: _navigateToLogin,
+        onTap: _navigateAfterSplash,
         child: Scaffold(
           body: Container(
             width: double.infinity,

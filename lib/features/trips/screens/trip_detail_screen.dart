@@ -16,7 +16,7 @@ class TripDetailScreen extends StatelessWidget {
     required this.tripName,
     required this.tripDate,
     required this.tripLocation,
-    this.imageUrl = 'assets/images/pid_vodoy.avif',
+    this.imageUrl = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80',
     this.temperature = '+18°C',
   });
 
@@ -103,7 +103,7 @@ class TripDetailScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _buildCatchItem(
-                        imageUrl: 'assets/images/pid_vodoy.avif',
+                        imageUrl: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=400&q=80',
                         fishName: 'Щука',
                         weight: '3,2 кг',
                         length: '68 см',
@@ -111,7 +111,7 @@ class TripDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       _buildCatchItem(
-                        imageUrl: 'assets/images/gory.avif',
+                        imageUrl: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=400&q=80',
                         fishName: 'Щука',
                         weight: '1,6 кг',
                         length: '52 см',
@@ -228,7 +228,7 @@ class TripDetailScreen extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: Image.asset(
+              child: Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
@@ -461,7 +461,7 @@ class TripDetailScreen extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: Image.asset(
+            child: Image.network(
               imageUrl,
               width: 88,
               height: 88,

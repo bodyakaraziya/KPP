@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../home/screens/home_screen.dart';
@@ -6,8 +7,6 @@ import '../../trips/screens/trips_screen.dart';
 import '../../water_bodies/screens/water_bodies_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../trips/screens/add_trip_screen.dart';
-
-import 'package:flutter/services.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -41,13 +40,12 @@ class _MainScreenState extends State<MainScreen> {
       const WaterBodiesScreen(),
       const ProfileScreen(),
     ];
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            Brightness.dark, // ⚫ ТЕМНІ кнопки на світлому тлі
+      value: SystemUiOverlayStyle.dark.copyWith(
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
       ),
       child: Scaffold(

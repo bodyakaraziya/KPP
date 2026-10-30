@@ -38,7 +38,7 @@ class WaterBodyCard extends StatelessWidget {
             // Квадратне фото водойми зліва
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
+              child: Image.network(
                 imageUrl,
                 width: 84,
                 height: 84,
@@ -48,11 +48,7 @@ class WaterBodyCard extends StatelessWidget {
                   height: 84,
                   color: Colors.grey[300],
                   alignment: Alignment.center,
-                  child: Icon(
-                    Icons.image,
-                    size: 28,
-                    color: Colors.grey[600],
-                  ),
+                  child: Icon(Icons.image, size: 28, color: Colors.grey[600]),
                 ),
               ),
             ),
@@ -139,6 +135,7 @@ Future<void> showWaterBodyFormSheet(
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     builder: (ctx) {
@@ -199,16 +196,19 @@ class _WaterBodyFormSheetContentState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
+        ? media.viewInsets.bottom
+        : media.viewPadding.bottom;
     final String photoUrl =
         widget.initialImageUrl ??
         (widget.isEditing
-            ? 'assets/images/gory.avif'
-            : 'assets/images/okean_susha.avif');
+            ? 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80'
+            : 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80');
 
     return Container(
-      margin: const EdgeInsets.only(top: 50),
-      padding: EdgeInsets.fromLTRB(22, 12, 22, 20 + bottomInset),
+      margin: const EdgeInsets.only(top: 32),
+      padding: EdgeInsets.fromLTRB(22, 12, 22, bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -270,25 +270,28 @@ class _WaterBodyFormSheetContentState
             const SizedBox(height: 18),
 
             // Банер фотографії з кнопкою "Змінити фото"
-            Container(
-              height: 112,
+            SizedBox(
+              height: 96,
               width: double.infinity,
               child: Stack(
                 children: [
                   // Image with errorBuilder
                   Container(
                     width: double.infinity,
-                    height: 112,
+                    height: 96,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.cardBorder, width: 1.5),
+                      border: Border.all(
+                        color: AppColors.cardBorder,
+                        width: 1.5,
+                      ),
                     ),
-                    child: Image.asset(
+                    child: Image.network(
                       photoUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: double.infinity,
-                        height: 112,
+                        height: 96,
                         color: Colors.grey[300],
                         alignment: Alignment.center,
                         child: Icon(
@@ -386,7 +389,7 @@ class _WaterBodyFormSheetContentState
             _buildTextField(
               initialValue: widget.initialNotes,
               hintText: 'Особливості місця...',
-              maxLines: 3,
+              maxLines: 2,
             ),
             const SizedBox(height: 22),
 
@@ -447,8 +450,6 @@ class _WaterBodyFormSheetContentState
                 ),
               ),
             ),
-
-            const SizedBox(height: 22),
           ],
         ),
       ),

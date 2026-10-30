@@ -1,24 +1,34 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+
 import 'app.dart';
+import 'firebase_options.dart';
 
-void main() {
-
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Робимо системні панелі (вгорі та внизу) повністю прозорими
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, // Верхній рядок (годинник, батарея)
-      systemNavigationBarColor:
-          Colors.transparent, // Нижній рядок (системні кнопки)
-      systemNavigationBarContrastEnforced:
-          false, // Відключаємо системне затемнення Android
-    ),
-  );
+  // Ініціалізація Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Умикаємо режим Edge-to-Edge (вміст заходить під системні панелі)
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // Перехоплення помилок Flutter для Crashlytics
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+
+  // Перехоплення асинхронних помилок платформи для Crashlytics
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
+  // Фіксація запуску додатку у Firebase Analytics
+  await FirebaseAnalytics.instance.logAppOpen();
 
   runApp(const FishLogApp());
 }

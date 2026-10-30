@@ -16,7 +16,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
     this.type = 'Річка',
     this.location = 'Київська обл., Обухівський р-н',
     this.notes = 'Тиха річка. Плотва та краснопірка.',
-    this.imageUrl = 'assets/images/gory.avif',
+    this.imageUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80',
   });
 
   @override
@@ -70,7 +70,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
                 // Фото водойми
                 ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
+                  child: Image.network(
                     imageUrl,
                     height: 220,
                     width: double.infinity,

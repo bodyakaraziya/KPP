@@ -216,6 +216,7 @@ Future<void> showTackleFormSheet(
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     builder: (ctx) {
@@ -270,12 +271,13 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final currentStyle = TackleStyle.fromCategory(_selectedCategory);
-
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
+        ? media.viewInsets.bottom
+        : media.viewPadding.bottom;
     return Container(
       margin: const EdgeInsets.only(top: 60),
-      padding: EdgeInsets.fromLTRB(22, 12, 22, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(22, 12, 22, bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -472,8 +474,6 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
                 ),
               ),
             ),
-
-            const SizedBox(height: 22),
           ],
         ),
       ),
