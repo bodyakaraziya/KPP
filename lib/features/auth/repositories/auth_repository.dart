@@ -77,19 +77,10 @@ class AuthRepository {
     }
   }
 
-  // Скидання пароля — лист містить посилання, яке відкриє саме додаток
+  // Скидання пароля — лист містить посилання на стандартну сторінку Firebase
   Future<void> sendPasswordResetEmail(String email) async {
     try {
-      final actionCodeSettings = ActionCodeSettings(
-        url: 'https://fishlog-cbb8f.firebaseapp.com/reset-password',
-        handleCodeInApp: true,
-        androidPackageName: 'com.example.fishlog',
-        androidInstallApp: false,
-      );
-      await _firebaseAuth.sendPasswordResetEmail(
-        email: email,
-        actionCodeSettings: actionCodeSettings,
-      );
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));
     }

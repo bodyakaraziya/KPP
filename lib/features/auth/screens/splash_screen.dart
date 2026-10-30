@@ -4,14 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'login_screen.dart';
-import 'reset_password_screen.dart';
 import '../../main/screens/main_screen.dart';
 import '../repositories/auth_repository.dart';
 
 class SplashScreen extends StatefulWidget {
-  final String? initialOobCode;
-
-  const SplashScreen({super.key, this.initialOobCode});
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -52,15 +49,8 @@ class _SplashScreenState extends State<SplashScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => widget.initialOobCode != null &&
-                  widget.initialOobCode!.isNotEmpty
-              ? ResetPasswordScreen(
-                  authRepository: repo,
-                  oobCode: widget.initialOobCode!,
-                )
-              : repo.currentUser != null
-                  ? const MainScreen()
-                  : const LoginScreen(),
+          builder: (_) =>
+              repo.currentUser != null ? const MainScreen() : const LoginScreen(),
         ),
       );
     });

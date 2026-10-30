@@ -7,7 +7,6 @@ import '../../../core/widgets/auth_background.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
 import '../repositories/auth_repository.dart';
-import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   final AuthRepository? authRepository;
@@ -62,14 +61,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       showAppSnackBar(
         context,
         message:
-            'Посилання для скидання пароля надіслано на вашу пошту. Відкрийте лист і перейдіть за посиланням — воно відкриє додаток.',
+            'Посилання для скидання пароля надіслано на вашу пошту. Відкрийте лист і перейдіть за посиланням.',
         isError: false,
-      );
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ResetPasswordScreen(authRepository: _authRepository),
-        ),
       );
     } catch (e) {
       if (!mounted) return;
