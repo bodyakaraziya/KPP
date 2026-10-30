@@ -13,6 +13,9 @@ class PasswordCard extends StatelessWidget {
   final TextEditingController currentPasswordCtrl;
   final TextEditingController newPasswordCtrl;
   final TextEditingController confirmPasswordCtrl;
+  final FormFieldValidator<String>? currentPasswordValidator;
+  final FormFieldValidator<String>? newPasswordValidator;
+  final FormFieldValidator<String>? confirmPasswordValidator;
 
   const PasswordCard({
     super.key,
@@ -24,6 +27,9 @@ class PasswordCard extends StatelessWidget {
     required this.currentPasswordCtrl,
     required this.newPasswordCtrl,
     required this.confirmPasswordCtrl,
+    this.currentPasswordValidator,
+    this.newPasswordValidator,
+    this.confirmPasswordValidator,
   });
 
   @override
@@ -120,6 +126,7 @@ class PasswordCard extends StatelessWidget {
                     prefixIcon: Icons.lock_outline_rounded,
                     obscureText: true,
                     suffixIcon: Icons.visibility_off,
+                    validator: currentPasswordValidator,
                   ),
                   const SizedBox(height: 14),
 
@@ -129,6 +136,7 @@ class PasswordCard extends StatelessWidget {
                     prefixIcon: Icons.lock_outline_rounded,
                     obscureText: true,
                     suffixIcon: Icons.visibility_off,
+                    validator: newPasswordValidator,
                   ),
                   const SizedBox(height: 14),
 
@@ -138,6 +146,7 @@ class PasswordCard extends StatelessWidget {
                     prefixIcon: Icons.lock_outline_rounded,
                     obscureText: true,
                     suffixIcon: Icons.visibility_off,
+                    validator: confirmPasswordValidator,
                   ),
                   const SizedBox(height: 18),
 

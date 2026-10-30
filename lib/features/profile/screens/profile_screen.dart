@@ -157,14 +157,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // --- Пароль ---
   Future<void> _changePassword() async {
-    final current = _currentPasswordCtrl.text;
-    final newPassword = _newPasswordCtrl.text;
+    final current = _currentPasswordCtrl.text.trim();
+    final newPassword = _newPasswordCtrl.text.trim();
+    final confirm = _confirmPasswordCtrl.text.trim();
 
-    if (current.isEmpty || newPassword.isEmpty) {
+    if (current.isEmpty || newPassword.isEmpty || confirm.isEmpty) {
       showAppSnackBar(
         context,
         title: 'Помилка',
         message: 'Будь ласка, заповніть всі поля',
+        isError: true,
+      );
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Новий пароль має містити щонайменше 8 символів',
+        isError: true,
+      );
+      return;
+    }
+
+    if (newPassword != confirm) {
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Паролі не збігаються',
         isError: true,
       );
       return;
@@ -307,6 +328,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             currentPasswordCtrl: _currentPasswordCtrl,
                             newPasswordCtrl: _newPasswordCtrl,
                             confirmPasswordCtrl: _confirmPasswordCtrl,
+                            currentPasswordValidator:
+                                requiredValidator(
+                                    fieldName: 'Поточний пароль'),
+                            newPasswordValidator: passwordValidator(
+                                minLength: 8),
+                            confirmPasswordValidator:
+                                requiredValidator(
+                                    fieldName: 'Повторіть пароль'),
                           ),
                           const SizedBox(height: 14),
                           Align(

@@ -81,7 +81,7 @@ class AuthRepository {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       final actionCodeSettings = ActionCodeSettings(
-        url: 'fishlog://reset-password',
+        url: 'https://fishlog-cbb8f.firebaseapp.com/reset-password',
         handleCodeInApp: true,
         androidPackageName: 'com.example.fishlog',
         androidInstallApp: false,

@@ -73,7 +73,7 @@ FormFieldValidator<String> phoneValidator() {
       number = number.substring(3);
     }
     if (number.isEmpty) {
-      return 'Будь ласка, введіть цифри номера після коду +380';
+      return null; // телефон опціональний — порожній номер допустимий
     }
     if (number.length != 9) {
       return 'Номер телефону має містити 9 цифр після коду +380';

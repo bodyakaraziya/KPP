@@ -26,6 +26,11 @@ class PhoneMaskFormatter extends TextInputFormatter {
       local = local.substring(3);
     }
 
+    // Забороняємо вводити більше 9 цифр після коду +380.
+    if (local.length > 9) {
+      return oldValue;
+    }
+
     final groups = <String>[];
     int i = 0;
     for (final len in [2, 3, 2, 2]) {
