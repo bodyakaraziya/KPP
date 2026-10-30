@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/screens/login_screen.dart';
-import '../../auth/screens/change_password_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
 import '../../main/screens/main_screen.dart';
 import '../../statistics/screens/statistics_screen.dart';

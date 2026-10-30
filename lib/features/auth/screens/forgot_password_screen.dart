@@ -4,88 +4,158 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_background.dart';
+import '../repositories/auth_repository.dart';
 
-class ForgotPasswordScreen extends StatelessWidget {
-  const ForgotPasswordScreen({super.key});
+class ForgotPasswordScreen extends StatefulWidget {
+  final AuthRepository? authRepository;
+
+  const ForgotPasswordScreen({super.key, this.authRepository});
+
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+
+  late final AuthRepository _authRepository;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authRepository = widget.authRepository ?? AuthRepository();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleResetPassword() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _authRepository.sendPasswordResetEmail(
+        _emailController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Інструкції для відновлення пароля надіслано на ваш Email!',
+          ),
+          backgroundColor: AppColors.primaryTeal,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AuthBackground(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(8),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.chevron_left,
-                    color: AppColors.primaryTeal,
-                    size: 20,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    'Назад до входу',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              onTap: _isLoading ? null : () => Navigator.pop(context),
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.chevron_left,
                       color: AppColors.primaryTeal,
+                      size: 20,
                     ),
-                  ),
-                ],
+                    SizedBox(width: 4),
+                    Text(
+                      'Назад до входу',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryTeal,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          const Text(
-            'Відновлення пароля',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.5,
+            const Text(
+              'Відновлення пароля',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Введіть вашу електронну пошту, і ми надішлемо посилання для скидання пароля',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-              height: 1.35,
+            const SizedBox(height: 6),
+            const Text(
+              'Введіть вашу електронну пошту, і ми надішлемо посилання для скидання пароля',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.35,
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          const AppTextField(
-            label: 'Email',
-            hintText: 'you@example.com',
-            prefixIcon: Icons.mail_outline,
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 24),
+            AppTextField(
+              label: 'Email',
+              hintText: 'you@example.com',
+              prefixIcon: Icons.mail_outline,
+              keyboardType: TextInputType.emailAddress,
+              controller: _emailController,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Будь ласка, введіть Email';
+                }
+                if (!value.contains('@') || !value.contains('.')) {
+                  return 'Введіть коректний Email';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
 
-          AppButton(
-            text: 'Надіслати посилання',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Інструкції для відновлення пароля надіслано на ваш Email!',
+            _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryTeal,
+                    ),
+                  )
+                : AppButton(
+                    text: 'Надіслати посилання',
+                    onPressed: _handleResetPassword,
                   ),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-              Navigator.pop(context);
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
