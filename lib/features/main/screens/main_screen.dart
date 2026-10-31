@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_fab.dart';
 import '../../auth/repositories/auth_repository.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../home/screens/home_screen.dart';
@@ -73,7 +74,7 @@ class _MainScreenState extends State<MainScreen> {
       child: Scaffold(
         body: IndexedStack(index: _currentIndex, children: screens),
         floatingActionButton: _currentIndex == 0 || _currentIndex == 1
-            ? FloatingActionButton(
+            ? AppFab(
                 heroTag: 'main_screen_fab',
                 onPressed: () {
                   Navigator.push(
@@ -81,15 +82,10 @@ class _MainScreenState extends State<MainScreen> {
                     MaterialPageRoute(builder: (_) => const AddTripScreen()),
                   );
                 },
-                backgroundColor: AppColors.primaryTeal,
-                foregroundColor: Colors.white,
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(Icons.add, size: 30),
+                icon: Icons.add,
               )
             : null,
+        floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
             border: Border(

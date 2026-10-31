@@ -220,6 +220,7 @@ class PersonalDataCard extends StatelessWidget {
           controller: firstNameCtrl,
           prefixIcon: Icons.person_outline,
           hintText: 'Ваше ім\'я',
+          formatters: [LengthLimitingTextInputFormatter(20)],
         ),
         const SizedBox(height: 14),
         _buildFieldLabel('Email'),

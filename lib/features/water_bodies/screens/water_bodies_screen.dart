@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_fab.dart';
 import '../../../core/widgets/water_body_card.dart';
 import 'water_body_detail_screen.dart';
 
@@ -35,7 +36,7 @@ class WaterBodiesScreen extends StatelessWidget {
     },
   ];
 
- @override
+  @override
   Widget build(BuildContext context) {
     final bool canPop = Navigator.canPop(context);
 
@@ -135,16 +136,12 @@ class WaterBodiesScreen extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag:
-            null, // Вимикає конфлікт Hero-тегів між вкладкою та окремим вікном
+      floatingActionButton: AppFab(
+        heroTag: 'water_bodies_screen_fab',
         onPressed: () => showWaterBodyFormSheet(context),
-        backgroundColor: AppColors.primaryTeal,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(Icons.add, size: 30),
+        icon: Icons.add,
       ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
     );
   }
 

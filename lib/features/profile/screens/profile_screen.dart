@@ -197,13 +197,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  void _unfocusPersonalDataEditor() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   Future<void> _savePersonalData() async {
+    _unfocusPersonalDataEditor();
+
     final name = _firstNameCtrl.text.trim();
     if (name.isEmpty) {
       showAppSnackBar(
         context,
         title: 'Помилка',
         message: 'Будь ласка, введіть ім\'я',
+        isError: true,
+      );
+      return;
+    }
+    if (name.length > 20) {
+      showAppSnackBar(
+        context,
+        title: 'Помилка',
+        message: 'Ім\'я не може містити більше 20 символів.',
         isError: true,
       );
       return;
@@ -302,13 +317,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         message: authErrorMessage(e),
         isError: true,
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isEditingPersonal = false;
-          _isPersonalExpanded = false;
-        });
-      }
     }
   }
 
