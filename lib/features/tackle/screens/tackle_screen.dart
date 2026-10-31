@@ -79,6 +79,7 @@ class _TackleScreenState extends State<TackleScreen> {
         icon: Icons.add,
         heroTag: 'tackle_screen_fab',
       ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

@@ -1,7 +1,13 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_fab.dart';
+import '../../auth/repositories/auth_repository.dart';
+import '../../auth/screens/login_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../trips/screens/trips_screen.dart';
 import '../../water_bodies/screens/water_bodies_screen.dart';
@@ -18,12 +24,29 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final AuthRepository _authRepository = AuthRepository();
+  StreamSubscription<User?>? _authSubscription;
   int _currentIndex = -1;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _authSubscription = _authRepository.authStateChanges.listen((user) {
+      if (user == null && mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   void _switchTab(int index) {
@@ -51,7 +74,7 @@ class _MainScreenState extends State<MainScreen> {
       child: Scaffold(
         body: IndexedStack(index: _currentIndex, children: screens),
         floatingActionButton: _currentIndex == 0 || _currentIndex == 1
-            ? FloatingActionButton(
+            ? AppFab(
                 heroTag: 'main_screen_fab',
                 onPressed: () {
                   Navigator.push(
@@ -59,15 +82,10 @@ class _MainScreenState extends State<MainScreen> {
                     MaterialPageRoute(builder: (_) => const AddTripScreen()),
                   );
                 },
-                backgroundColor: AppColors.primaryTeal,
-                foregroundColor: Colors.white,
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(Icons.add, size: 30),
+                icon: Icons.add,
               )
             : null,
+        floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
             border: Border(

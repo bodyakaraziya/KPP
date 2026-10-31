@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
@@ -145,6 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hintText: "Ваше ім'я",
                 prefixIcon: Icons.person_outline,
                 controller: _nameController,
+                inputFormatters: [LengthLimitingTextInputFormatter(20)],
                 validator: requiredValidator(fieldName: "ім'я"),
               ),
               const SizedBox(height: 16),
