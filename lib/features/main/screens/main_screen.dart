@@ -1,7 +1,12 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../auth/repositories/auth_repository.dart';
+import '../../auth/screens/login_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../trips/screens/trips_screen.dart';
 import '../../water_bodies/screens/water_bodies_screen.dart';
@@ -18,12 +23,29 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final AuthRepository _authRepository = AuthRepository();
+  StreamSubscription<User?>? _authSubscription;
   int _currentIndex = -1;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _authSubscription = _authRepository.authStateChanges.listen((user) {
+      if (user == null && mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   void _switchTab(int index) {

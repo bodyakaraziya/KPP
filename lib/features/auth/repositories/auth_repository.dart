@@ -9,6 +9,15 @@ class AuthRepository {
 
   User? get currentUser => _firebaseAuth.currentUser;
 
+  Future<User?> reloadCurrentUser() async {
+    try {
+      await _firebaseAuth.currentUser?.reload();
+      return _firebaseAuth.currentUser;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
   bool get usesPasswordProvider =>
       currentUser?.providerData.any(
         (provider) => provider.providerId == 'password',
@@ -144,12 +153,22 @@ class AuthRepository {
     }
   }
 
-  // Надсилає підтвердження після повторної автентифікації.
-  Future<void> updateEmail({required String newEmail}) async {
+  // Повторно перевіряє пароль і надсилає підтвердження для нової пошти.
+  Future<void> updateEmail({
+    required String newEmail,
+    required String currentPassword,
+  }) async {
     try {
       final user = _firebaseAuth.currentUser;
-      if (user == null) throw Exception('Користувача не знайдено');
+      if (user == null || user.email == null) {
+        throw Exception('Користувач не авторизований');
+      }
 
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
       await user.verifyBeforeUpdateEmail(newEmail);
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));

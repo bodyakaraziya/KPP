@@ -7,7 +7,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
 import '../../auth/repositories/auth_repository.dart';
-import '../../auth/screens/login_screen.dart';
 import '../../statistics/screens/statistics_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
 import '../widgets/app_settings_card.dart';
@@ -25,11 +24,14 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with WidgetsBindingObserver {
   final AuthRepository _authRepository = AuthRepository();
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<Map<String, dynamic>?>? _profileSubscription;
+  Timer? _emailStatusTimer;
+  bool _isRefreshingEmail = false;
 
   // Поточні дані користувача
   String _firstName = '';
@@ -67,10 +69,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _newPasswordCtrl = TextEditingController();
     _confirmPasswordCtrl = TextEditingController();
     _watchProfile(_authRepository.currentUser);
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_refreshEmailStatus());
 
     _authSubscription = _authRepository.authStateChanges.listen((user) {
-      if (!mounted) return;
-      final profileChanged = _profileUid != user?.uid;
+      if (!mounted || user == null) return;
+      final profileChanged = _profileUid != user.uid;
       setState(() {
         _syncUser(user);
         // Оновлюємо тексти в полях ЛИШЕ якщо користувач зараз НЕ редагує профіль
@@ -126,7 +130,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _firstName.isNotEmpty ? _firstName[0].toUpperCase() : 'А';
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshEmailStatus());
+    }
+  }
+
+  void _startEmailStatusPolling() {
+    _emailStatusTimer?.cancel();
+    _emailStatusTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_pendingEmail != null) {
+        unawaited(_refreshEmailStatus());
+      }
+    });
+  }
+
+  Future<void> _refreshEmailStatus() async {
+    if (_isRefreshingEmail) return;
+    _isRefreshingEmail = true;
+
+    try {
+      final expectedEmail = _pendingEmail;
+      final user = await _authRepository.reloadCurrentUser();
+      if (!mounted || user == null) return;
+
+      if (expectedEmail != null && user.email == expectedEmail) {
+        // Після підтвердження Email змушуємо користувача увійти заново.
+        _emailStatusTimer?.cancel();
+        await _authRepository.signOut();
+        return;
+      }
+
+      setState(() {
+        _syncUser(user);
+        if (!_isEditingPersonal) {
+          _emailCtrl.text = _email;
+        }
+      });
+    } catch (_) {
+      // Оновлення пошти не повинно блокувати роботу профілю.
+    } finally {
+      _isRefreshingEmail = false;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _emailStatusTimer?.cancel();
     _authSubscription?.cancel();
     _profileSubscription?.cancel();
     _firstNameCtrl.dispose();
@@ -139,6 +190,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // --- Особисті дані ---
+  Future<String?> _askForPassword() {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => const _PasswordConfirmationDialog(),
+    );
+  }
+
   Future<void> _savePersonalData() async {
     final name = _firstNameCtrl.text.trim();
     if (name.isEmpty) {
@@ -199,11 +257,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
+    String? currentPassword;
+    if (emailChanged) {
+      currentPassword = await _askForPassword();
+      if (currentPassword == null) return;
+    }
+
     try {
       if (emailChanged) {
-        await _authRepository.updateEmail(newEmail: newEmail);
+        await _authRepository.updateEmail(
+          newEmail: newEmail,
+          currentPassword: currentPassword!,
+        );
         if (!mounted) return;
         setState(() => _pendingEmail = newEmail);
+        _startEmailStatusPolling();
       }
       await _authRepository.saveProfileData(
         name: name,
@@ -234,6 +302,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         message: authErrorMessage(e),
         isError: true,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isEditingPersonal = false;
+          _isPersonalExpanded = false;
+        });
+      }
     }
   }
 
@@ -299,14 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _signOut() async {
-    await _authRepository.signOut();
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
+  Future<void> _signOut() => _authRepository.signOut();
 
   @override
   Widget build(BuildContext context) {
@@ -641,6 +709,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PasswordConfirmationDialog extends StatefulWidget {
+  const _PasswordConfirmationDialog();
+
+  @override
+  State<_PasswordConfirmationDialog> createState() =>
+      _PasswordConfirmationDialogState();
+}
+
+class _PasswordConfirmationDialogState
+    extends State<_PasswordConfirmationDialog> {
+  late final TextEditingController _passwordCtrl;
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final password = _passwordCtrl.text.trim();
+    if (password.isNotEmpty) {
+      Navigator.pop(context, password);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Підтвердіть зміну Email'),
+      content: TextField(
+        controller: _passwordCtrl,
+        autofocus: true,
+        obscureText: _obscurePassword,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: 'Пароль від акаунта',
+          hintText: 'Введіть поточний пароль',
+          suffixIcon: Transform.translate(
+            offset: const Offset(0, 7),
+            child: IconButton(
+              tooltip: _obscurePassword
+                  ? 'Показати пароль'
+                  : 'Приховати пароль',
+              iconSize: 20,
+              icon: Icon(
+                _obscurePassword
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+              ),
+              onPressed: () {
+                setState(() => _obscurePassword = !_obscurePassword);
+              },
+            ),
+          ),
+        ),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Скасувати'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Підтвердити')),
+      ],
     );
   }
 }
