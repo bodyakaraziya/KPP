@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 
@@ -390,6 +391,7 @@ class _WaterBodyFormSheetContentState
               initialValue: widget.initialNotes,
               hintText: 'Особливості місця...',
               maxLines: 2,
+              maxLength: 500,
             ),
             const SizedBox(height: 22),
 
@@ -475,10 +477,12 @@ class _WaterBodyFormSheetContentState
     required String hintText,
     IconData? prefixIcon,
     int maxLines = 1,
+    int maxLength = 100,
   }) {
     return TextFormField(
       initialValue: initialValue,
       maxLines: maxLines,
+      inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,

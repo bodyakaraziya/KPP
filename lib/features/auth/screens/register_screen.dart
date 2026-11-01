@@ -47,14 +47,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
-      if (!mounted) return;
-
-      showAppSnackBar(
-        context,
-        title: 'Помилка',
-        message: 'Будь ласка, виправте помилки у формі',
-        isError: true,
-      );
       return;
     }
 
@@ -157,6 +149,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 prefixIcon: Icons.mail_outline,
                 keyboardType: TextInputType.emailAddress,
                 controller: _emailController,
+                maxLength: 254,
                 validator: emailValidator(),
               ),
               const SizedBox(height: 16),
@@ -168,6 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
                 suffixIcon: Icons.visibility_off,
                 controller: _passwordController,
+                maxLength: 128,
                 validator: passwordValidator(minLength: 8),
               ),
               const SizedBox(height: 16),
@@ -179,6 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
                 suffixIcon: Icons.visibility_off,
                 controller: _confirmPasswordController,
+                maxLength: 128,
                 validator: confirmPasswordValidator(() => _passwordController.text),
               ),
               const SizedBox(height: 22),

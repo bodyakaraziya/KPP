@@ -43,14 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
-      if (!mounted) return;
-
-      showAppSnackBar(
-        context,
-        title: 'Помилка',
-        message: 'Будь ласка, виправте помилки у формі',
-        isError: true,
-      );
       return;
     }
 
@@ -113,6 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
               controller: _emailController,
+              maxLength: 254,
               validator: emailValidator(),
             ),
             const SizedBox(height: 18),
@@ -124,6 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: true,
               suffixIcon: Icons.visibility_off,
               controller: _passwordController,
+              maxLength: 128,
               validator: passwordValidator(),
             ),
             const SizedBox(height: 12),

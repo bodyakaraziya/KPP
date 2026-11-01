@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_snackbar.dart';
@@ -761,6 +762,7 @@ class _PasswordConfirmationDialogState
         controller: _passwordCtrl,
         autofocus: true,
         obscureText: _obscurePassword,
+        inputFormatters: [LengthLimitingTextInputFormatter(128)],
         textInputAction: TextInputAction.done,
         decoration: InputDecoration(
           labelText: 'Пароль від акаунта',

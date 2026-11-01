@@ -229,6 +229,7 @@ class PersonalDataCard extends StatelessWidget {
           prefixIcon: Icons.mail_outline,
           hintText: 'you@example.com',
           keyboardType: TextInputType.emailAddress,
+          formatters: [LengthLimitingTextInputFormatter(254)],
         ),
         const SizedBox(height: 14),
         _buildFieldLabel('Телефон'),

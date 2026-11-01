@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/widgets/water_body_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tackle_card.dart';
-import '../../../features/water_bodies/screens/water_bodies_screen.dart';
 
 class AddTripScreen extends StatefulWidget {
   const AddTripScreen({super.key});
@@ -245,15 +245,15 @@ class _AddTripScreenState extends State<AddTripScreen> {
           const SizedBox(height: 16),
 
           _buildFieldLabel('Дата'),
-          _buildInputField(hintText: '24.05.2026'),
+          _buildInputField(hintText: '24.05.2026', maxLength: 10),
           const SizedBox(height: 16),
 
           _buildFieldLabel('Час початку'),
-          _buildInputField(hintText: '06:00'),
+          _buildInputField(hintText: '06:00', maxLength: 5),
           const SizedBox(height: 16),
 
           _buildFieldLabel('Час завершення'),
-          _buildInputField(hintText: '12:00'),
+          _buildInputField(hintText: '12:00', maxLength: 5),
           const SizedBox(height: 16),
 
           // Плашка Тривалість
@@ -544,6 +544,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
       title: 'Нотатки',
       child: TextFormField(
         maxLines: 4,
+        inputFormatters: [LengthLimitingTextInputFormatter(500)],
         decoration: InputDecoration(
           hintText: "Де клювало, на що, що варто пам'ятати наступного разу...",
           hintStyle: const TextStyle(
@@ -647,9 +648,11 @@ class _AddTripScreenState extends State<AddTripScreen> {
     String? initialValue,
     String? hintText,
     IconData? prefixIcon,
+    int maxLength = 100,
   }) {
     return TextFormField(
       initialValue: initialValue,
+      inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,

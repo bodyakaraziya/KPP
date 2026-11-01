@@ -109,6 +109,7 @@ class _ForgotPasswordBottomSheetState extends State<ForgotPasswordBottomSheet> {
             prefixIcon: Icons.mail_outline,
             keyboardType: TextInputType.emailAddress,
             controller: _emailCtrl,
+            maxLength: 254,
           ),
           const SizedBox(height: 22),
 

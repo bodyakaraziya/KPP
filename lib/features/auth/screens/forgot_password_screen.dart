@@ -141,6 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               prefixIcon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
               controller: _emailController,
+              maxLength: 254,
               validator: emailValidator(),
             ),
             const SizedBox(height: 24),

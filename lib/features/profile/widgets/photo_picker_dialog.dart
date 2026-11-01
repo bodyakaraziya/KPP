@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -214,6 +215,7 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
                 controller: _urlController,
                 keyboardType: TextInputType.url,
                 autocorrect: false,
+                inputFormatters: [LengthLimitingTextInputFormatter(2048)],
                 decoration: InputDecoration(
                   labelText: 'Посилання на власний аватар',
                   hintText: 'example.com/avatar.jpg',
