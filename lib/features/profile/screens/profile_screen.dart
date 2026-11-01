@@ -342,12 +342,26 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      showAppSnackBar(
-        context,
-        title: 'Помилка збереження',
-        message: authErrorMessage(e),
-        isError: true,
-      );
+      final message = authErrorMessage(e);
+      // Якщо пошта вже зайнята іншим обліковим записом — показуємо чітке
+      // повідомлення замість загальної «Помилки збереження».
+      final isEmailTaken = message.contains('вже існує')
+          || message.contains('вже використовуються');
+      if (isEmailTaken) {
+        showAppSnackBar(
+          context,
+          title: 'Пошту не змінено',
+          message: 'Обліковий запис з таким Email вже існує.',
+          isError: true,
+        );
+      } else {
+        showAppSnackBar(
+          context,
+          title: 'Помилка збереження',
+          message: message,
+          isError: true,
+        );
+      }
     }
   }
 
