@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
               suffixIcon: Icons.visibility_off,
               controller: _passwordController,
               maxLength: 128,
-              validator: passwordValidator(),
+              validator: passwordValidator(minLength: 8),
             ),
             const SizedBox(height: 12),
 

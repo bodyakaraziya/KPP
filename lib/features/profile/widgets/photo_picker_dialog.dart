@@ -33,7 +33,7 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
   void _selectCustomUrl() {
     String rawValue = _urlController.text.trim();
     if (rawValue.isEmpty) {
-      setState(() => _urlError = 'Введіть посилання на зображення');
+      setState(() => _urlError = 'Введіть посилання на аватар');
       return;
     }
 
@@ -42,7 +42,7 @@ class _PhotoPickerDialogState extends State<PhotoPickerDialog> {
 
     final uri = Uri.tryParse(rawValue);
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
-      setState(() => _urlError = 'Введіть коректне HTTPS-посилання.');
+      setState(() => _urlError = 'Введіть коректне посилання, що починається з https://');
       return;
     }
 

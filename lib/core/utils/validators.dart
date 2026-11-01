@@ -24,7 +24,7 @@ FormFieldValidator<String> emailValidator() {
       return 'Будь ласка, введіть Email';
     }
     if (!_emailRegex.hasMatch(value.trim())) {
-      return 'Введіть коректний Email';
+      return 'Введіть коректну адресу електронної пошти.';
     }
     return null;
   };
@@ -38,7 +38,7 @@ FormFieldValidator<String> passwordValidator({int? minLength}) {
       return 'Будь ласка, введіть пароль';
     }
     if (minLength != null && value.length < minLength) {
-      return 'Пароль має бути щонайменше $minLength символів';
+      return 'Пароль має містити щонайменше $minLength символів';
     }
     return null;
   };
@@ -83,7 +83,7 @@ FormFieldValidator<String> phoneValidator() {
 }
 
 /// Мапить коди помилок Firebase Auth на українські повідомлення.
-final _firebaseErrorMessages = {
+final firebaseErrorMessages = {
   'user-not-found': 'Користувача з таким Email не знайдено.',
   'wrong-password': 'Невірний пароль.',
   'email-already-in-use': 'Обліковий запис з таким Email вже існує.',
@@ -112,11 +112,11 @@ String authErrorMessage(Object error) {
       : message;
 
   // Якщо повідомлення містить відомий код помилки Firebase, повертаємо конкретний текст
-  for (final entry in _firebaseErrorMessages.entries) {
+  for (final entry in firebaseErrorMessages.entries) {
     if (cleanMessage.contains(entry.key)) {
       return entry.value;
     }
   }
 
-  return cleanMessage.isNotEmpty ? cleanMessage : 'Сталася невідома помилка.';
+  return cleanMessage.isNotEmpty ? cleanMessage : 'Сталася невідома помилка. Спробуйте пізніше.';
 }

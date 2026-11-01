@@ -38,14 +38,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _handleResetPassword() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
-      if (!mounted) return;
-
-      showAppSnackBar(
-        context,
-        title: 'Помилка',
-        message: 'Будь ласка, виправте помилки у формі',
-        isError: true,
-      );
       return;
     }
 

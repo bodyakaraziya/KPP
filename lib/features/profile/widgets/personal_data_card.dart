@@ -4,20 +4,19 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
 
+/// Форматер мобільного номера України з незмінним префіксом +380.
+///
+/// Користувач може редагувати лише цифри після префікса; саме префікс
+/// залишається недоторканим.
 class PhoneMaskFormatter extends TextInputFormatter {
+  static const _prefix = '+380 ';
+
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
     final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-
-    if (digits.isEmpty) {
-      return const TextEditingValue(
-        text: '+380 ',
-        selection: TextSelection.collapsed(offset: 5),
-      );
-    }
 
     String local = digits;
     if (local.startsWith('380')) {
@@ -40,20 +39,25 @@ class PhoneMaskFormatter extends TextInputFormatter {
       groups.add(local.substring(i));
     }
 
-    final formatted = '+380 ${groups.join(' ')}';
+    final formatted = '$_prefix${groups.join(' ')}';
 
-    // Розрахунок позиції курсора
-    int selectionIndex = formatted.length;
-    if (newValue.selection.end < newValue.text.length) {
-      selectionIndex = newValue.selection.end;
-      if (selectionIndex > formatted.length) {
-        selectionIndex = formatted.length;
-      }
-    }
+    // Курсор не може знаходитися перед префіксом або на ньому.
+    final minIndex = _prefix.length;
+    final selectionStart = newValue.selection.start.clamp(
+      minIndex,
+      formatted.length,
+    );
+    final selectionEnd = newValue.selection.end.clamp(
+      minIndex,
+      formatted.length,
+    );
 
     return TextEditingValue(
       text: formatted,
-      selection: TextSelection.collapsed(offset: selectionIndex),
+      selection: TextSelection(
+        baseOffset: selectionStart,
+        extentOffset: selectionEnd,
+      ),
     );
   }
 }
