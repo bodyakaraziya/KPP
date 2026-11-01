@@ -43,14 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
-      if (!mounted) return;
-
-      showAppSnackBar(
-        context,
-        title: 'Помилка',
-        message: 'Будь ласка, виправте помилки у формі',
-        isError: true,
-      );
       return;
     }
 
@@ -63,6 +55,20 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
+
+      final user = _authRepository.currentUser;
+      if (user != null && !user.emailVerified) {
+        await _authRepository.signOut();
+        if (!mounted) return;
+        showAppSnackBar(
+          context,
+          title: 'Пошту не підтверджено',
+          message:
+              'Будь ласка, перевірте поштову скриньку та підтвердьте адресу електронної пошти перед входом.',
+          isError: true,
+        );
+        return;
+      }
 
       Navigator.pushReplacement(
         context,
@@ -105,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'Увійдіть, щоб продовжити вести щоденник',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 20),
 
             AppTextField(
               label: 'Email',
@@ -113,9 +119,10 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
               controller: _emailController,
+              maxLength: 254,
               validator: emailValidator(),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
             AppTextField(
               label: 'Пароль',
@@ -124,7 +131,8 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: true,
               suffixIcon: Icons.visibility_off,
               controller: _passwordController,
-              validator: passwordValidator(),
+              maxLength: 128,
+              validator: passwordValidator(minLength: 8),
             ),
             const SizedBox(height: 12),
 
@@ -156,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
             _isLoading
                 ? const Center(
@@ -165,9 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   )
                 : AppButton(text: 'Увійти', onPressed: _handleLogin),
-            const SizedBox(height: 12),
-
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

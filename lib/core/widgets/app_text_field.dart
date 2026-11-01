@@ -12,6 +12,7 @@ class AppTextField extends StatefulWidget {
   final TextInputType keyboardType;
   final FormFieldValidator<String>? validator;
   final List<TextInputFormatter>? inputFormatters;
+  final int maxLength;
   final double? width;
   final IconData? suffixIcon;
 
@@ -25,6 +26,7 @@ class AppTextField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.validator,
     this.inputFormatters,
+    this.maxLength = 100,
     this.width,
     this.suffixIcon,
   });
@@ -64,7 +66,10 @@ class _AppTextFieldState extends State<AppTextField> {
             autovalidateMode: AutovalidateMode.onUserInteraction,
             keyboardType: widget.keyboardType,
             validator: widget.validator,
-            inputFormatters: widget.inputFormatters,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(widget.maxLength),
+              ...?widget.inputFormatters,
+            ],
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,

@@ -7,8 +7,8 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/auth_background.dart';
-import '../../main/screens/main_screen.dart';
 import '../repositories/auth_repository.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final AuthRepository? authRepository;
@@ -47,14 +47,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
-      if (!mounted) return;
-
-      showAppSnackBar(
-        context,
-        title: 'Помилка',
-        message: 'Будь ласка, виправте помилки у формі',
-        isError: true,
-      );
       return;
     }
 
@@ -69,9 +61,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
+      // Надсилаємо лист для підтвердження адреси електронної пошти.
+      await _authRepository.sendEmailVerification();
+
+      if (!mounted) return;
+
+      showAppSnackBar(
+        context,
+        message:
+            'Лист для підтвердження пошти надіслано на ${_emailController.text.trim()}. Будь ласка, підтвердьте адресу перед входом.',
+        isError: false,
+      );
+
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
     } catch (e) {
@@ -123,7 +127,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
 
               const Text(
                 'Створіть акаунт',
@@ -134,12 +137,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 6),
               const Text(
                 'Почніть зберігати свої рибальські історії',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: "Ім'я",
@@ -149,7 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 inputFormatters: [LengthLimitingTextInputFormatter(20)],
                 validator: requiredValidator(fieldName: "ім'я"),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: 'Email',
@@ -157,9 +159,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 prefixIcon: Icons.mail_outline,
                 keyboardType: TextInputType.emailAddress,
                 controller: _emailController,
+                maxLength: 254,
                 validator: emailValidator(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: 'Пароль',
@@ -168,9 +171,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
                 suffixIcon: Icons.visibility_off,
                 controller: _passwordController,
+                maxLength: 128,
                 validator: passwordValidator(minLength: 8),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: 'Підтвердження пароля',
@@ -179,6 +183,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
                 suffixIcon: Icons.visibility_off,
                 controller: _confirmPasswordController,
+                maxLength: 128,
                 validator: confirmPasswordValidator(() => _passwordController.text),
               ),
               const SizedBox(height: 22),
@@ -193,7 +198,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       text: 'Зареєструватися',
                       onPressed: _handleRegister,
                     ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

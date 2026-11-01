@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_snackbar.dart';
@@ -201,6 +202,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
+  /// Групує цифри номера за шаблоном 2-3-2-2 (наприклад 551234567 → 55 123 45 67).
+  String _groupDigits(String digits) {
+    final groups = <String>[];
+    var i = 0;
+    for (final len in [2, 3, 2, 2]) {
+      if (i >= digits.length) break;
+      final end = digits.length < i + len ? digits.length : i + len;
+      groups.add(digits.substring(i, end));
+      i = end;
+    }
+    if (i < digits.length) {
+      groups.add(digits.substring(i));
+    }
+    return groups.join(' ');
+  }
+
   Future<void> _savePersonalData() async {
     _unfocusPersonalDataEditor();
 
@@ -252,13 +269,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Нормалізація номера телефону
     final phoneText = _phoneCtrl.text.trim();
     String? phoneToSave;
-    if (phoneText.isNotEmpty && phoneText != '+380') {
+    if (phoneText.isNotEmpty) {
       final digits = phoneText.replaceAll(RegExp(r'\D'), '');
-      String number = digits;
-      if (number.startsWith('380')) {
-        number = number.substring(3);
-      }
-      if (number.isNotEmpty && number.length != 9) {
+      if (digits.isNotEmpty && digits.length != 9) {
         showAppSnackBar(
           context,
           title: 'Помилка',
@@ -267,16 +280,39 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
         return;
       }
-      if (number.length == 9) {
-        phoneToSave = phoneText;
+      if (digits.length == 9) {
+        phoneToSave = '+380 $phoneText';
       }
     }
 
     String? currentPassword;
     if (emailChanged) {
+      // Перевіряємо зайнятість пошти через Firebase Auth і через Firestore
+      // (профілі користувачів), бо fetchSignInMethodsForEmail застарів і може
+      // не спрацьовувати через захист Firebase від перелічення пошт.
+      final currentUid = _authRepository.currentUser?.uid ?? '';
+      final emailTaken = await _authRepository.isEmailTaken(newEmail)
+          || await _authRepository.isEmailTakenByAnotherUser(
+              newEmail, currentUid);
+      if (!mounted) return;
+      if (emailTaken) {
+        showAppSnackBar(
+          context,
+          title: 'Пошту не змінено',
+          message: 'Обліковий запис з таким Email вже існує.',
+          isError: true,
+        );
+        return;
+      }
+
       currentPassword = await _askForPassword();
       if (currentPassword == null) return;
     }
+
+    // Переходимо у режим читання перед збереженням, щоб зміни стану автентифікації
+    // (викликані updateDisplayName всередині saveProfileData) коректно оновили інтерфейс
+    // і панель закривалася без затримки.
+    setState(() => _isEditingPersonal = false);
 
     try {
       if (emailChanged) {
@@ -291,6 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       await _authRepository.saveProfileData(
         name: name,
         phone: phoneToSave ?? '',
+        email: emailChanged ? newEmail : _email,
       );
       if (!mounted) return;
 
@@ -298,7 +335,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         _firstName = name;
         if (emailChanged) _pendingEmail = newEmail;
         _phone = phoneToSave ?? '';
-        _isEditingPersonal = false;
         _isPersonalExpanded = false; // Закриваємо панельку після збереження
       });
 
@@ -311,12 +347,26 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      showAppSnackBar(
-        context,
-        title: 'Помилка збереження',
-        message: authErrorMessage(e),
-        isError: true,
-      );
+      final message = authErrorMessage(e);
+      // Якщо пошта вже зайнята іншим обліковим записом — показуємо чітке
+      // повідомлення замість загальної «Помилки збереження».
+      final isEmailTaken = message.contains('вже існує')
+          || message.contains('вже використовуються');
+      if (isEmailTaken) {
+        showAppSnackBar(
+          context,
+          title: 'Пошту не змінено',
+          message: 'Обліковий запис з таким Email вже існує.',
+          isError: true,
+        );
+      } else {
+        showAppSnackBar(
+          context,
+          title: 'Помилка збереження',
+          message: message,
+          isError: true,
+        );
+      }
     }
   }
 
@@ -448,9 +498,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                               setState(() {
                                 _firstNameCtrl.text = _firstName;
                                 _emailCtrl.text = _email;
-                                _phoneCtrl.text = _phone.isEmpty
-                                    ? '+380 '
-                                    : _phone;
+                                // У `_phone` префікс '+380' уже зберігається разом із номером,
+                                // тому перед групуванням прибираємо код країни, інакше в полі
+                                // з'явиться '+380 38 055 ...' замість '+380 55 ...'.
+                                final rawDigits =
+                                    _phone.replaceAll(RegExp(r'\D'), '');
+                                final localDigits = rawDigits.startsWith('380') &&
+                                        rawDigits.length == 12
+                                    ? rawDigits.substring(3)
+                                    : rawDigits;
+                                _phoneCtrl.text =
+                                    _groupDigits(localDigits);
                                 _isEditingPersonal = true;
                               });
                             },
@@ -761,6 +819,7 @@ class _PasswordConfirmationDialogState
         controller: _passwordCtrl,
         autofocus: true,
         obscureText: _obscurePassword,
+        inputFormatters: [LengthLimitingTextInputFormatter(128)],
         textInputAction: TextInputAction.done,
         decoration: InputDecoration(
           labelText: 'Пароль від акаунта',

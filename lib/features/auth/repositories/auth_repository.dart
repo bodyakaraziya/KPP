@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../core/utils/validators.dart';
+
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
 
@@ -40,6 +42,7 @@ class AuthRepository {
   Future<void> saveProfileData({
     required String name,
     required String phone,
+    String? email,
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) throw Exception('Користувача не знайдено');
@@ -48,6 +51,7 @@ class AuthRepository {
     await _userProfiles.doc(user.uid).set({
       'displayName': name,
       'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
     }, SetOptions(merge: true));
   }
 
@@ -101,6 +105,21 @@ class AuthRepository {
     }
   }
 
+  /// Надсилає лист із посиланням для підтвердження адреси електронної пошти.
+  Future<void> sendEmailVerification() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw Exception('Користувача не знайдено');
+
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  /// Чи підтверджена пошта поточного користувача.
+  bool get isEmailVerified => _firebaseAuth.currentUser?.emailVerified ?? false;
+
   // Вхід через Email та Пароль
   Future<UserCredential> signIn({
     required String email,
@@ -150,6 +169,28 @@ class AuthRepository {
       if (photoURL != null) await user.updatePhotoURL(photoURL);
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  /// Перевіряє, чи Email вже пов'язаний з якимсь обліковим записом Firebase.
+  Future<bool> isEmailTaken(String email) async {
+    try {
+      final methods = await _firebaseAuth.fetchSignInMethodsForEmail(email);
+      return methods.isNotEmpty;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  /// Перевіряє, чи Email вже використано іншим користувачем у профілях Firestore.
+  /// [currentUid] — uid поточного користувача, якого треба виняти з перевірки.
+  /// Повертає false, якщо Firestore недоступний (наприклад, API вимкнено).
+  Future<bool> isEmailTakenByAnotherUser(String email, String currentUid) async {
+    try {
+      final query = await _userProfiles.where('email', isEqualTo: email).get();
+      return query.docs.any((doc) => doc.id != currentUid);
+    } catch (_) {
+      return false;
     }
   }
 
@@ -204,41 +245,12 @@ class AuthRepository {
     await _firebaseAuth.signOut();
   }
 
-  // Переклад помилок Firebase Auth
+  // Переклад помилок Firebase Auth через спільну мапу з validators.dart
   String _translateAuthError(String code) {
-    switch (code) {
-      case 'user-not-found':
-        return 'Користувача з такою електронною поштою не знайдено.';
-      case 'wrong-password':
-        return 'Невірний пароль. Спробуйте ще раз.';
-      case 'email-already-in-use':
-        return 'Обліковий запис із цією поштою вже існує.';
-      case 'invalid-email':
-        return 'Некоректний формат електронної пошти.';
-      case 'weak-password':
-        return 'Пароль занадто простий. Використайте щонайменше 8 символів.';
-      case 'requires-recent-login':
-        return 'Для виконання цієї операції потрібно повторно увійти в акаунт.';
-      case 'user-disabled':
-        return 'Цей обліковий запис було заблоковано.';
-      case 'too-many-requests':
-        return 'Забагато невдалих спроб. Зачекайте декілька хвилин.';
-      case 'invalid-credential':
-        return 'Неправильний Email або пароль.';
-      case 'account-exists-with-different-credential':
-        return 'Обліковий запис вже існує з іншим методом входу.';
-      case 'credential-already-in-use':
-        return 'Ці облікові дані вже використовуються.';
-      case 'operation-not-allowed':
-        return 'Цей метод входу не дозволений.';
-      case 'invalid-verification-code':
-        return 'Невірний код підтвердження.';
-      case 'invalid-verification-id':
-        return 'Некоректний ідентифікатор підтвердження.';
-      case 'network-request-failed':
-        return 'Помилка мережі. Перевірте підключення до інтернету.';
-      default:
-        return 'Сталася помилка автентифікації. Спробуйте пізніше.';
+    final message = firebaseErrorMessages[code];
+    if (message != null) {
+      return message;
     }
+    return 'Сталася помилка автентифікації. Спробуйте пізніше.';
   }
 }

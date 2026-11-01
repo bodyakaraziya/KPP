@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/app_snackbar.dart';
 
 class WaterBodyCard extends StatelessWidget {
   final String imageUrl;
@@ -390,6 +392,7 @@ class _WaterBodyFormSheetContentState
               initialValue: widget.initialNotes,
               hintText: 'Особливості місця...',
               maxLines: 2,
+              maxLength: 500,
             ),
             const SizedBox(height: 22),
 
@@ -400,15 +403,12 @@ class _WaterBodyFormSheetContentState
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        widget.isEditing
-                            ? 'Зміни збережено!'
-                            : 'Нову водойму додано!',
-                      ),
-                      duration: const Duration(seconds: 1),
-                    ),
+                  showAppSnackBar(
+                    context,
+                    message: widget.isEditing
+                        ? 'Зміни збережено!'
+                        : 'Нову водойму додано!',
+                    isError: false,
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -475,10 +475,12 @@ class _WaterBodyFormSheetContentState
     required String hintText,
     IconData? prefixIcon,
     int maxLines = 1,
+    int maxLength = 100,
   }) {
     return TextFormField(
       initialValue: initialValue,
       maxLines: maxLines,
+      inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,
@@ -574,11 +576,10 @@ Future<void> showDeleteWaterBodyDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Водойму видалено з довідника'),
-                          duration: Duration(seconds: 1),
-                        ),
+                      showAppSnackBar(
+                        context,
+                        message: 'Водойму видалено з довідника',
+                        isError: false,
                       );
                     },
                     child: const Text(

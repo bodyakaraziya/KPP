@@ -37,15 +37,12 @@ class _ForgotPasswordBottomSheetState extends State<ForgotPasswordBottomSheet> {
 
   static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
+  String? _errorText;
+
   void _handleSend(BuildContext context) {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !_emailRegex.hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Введіть коректну електронну пошту'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      setState(() => _errorText = 'Введіть коректну електронну пошту');
       return;
     }
     widget.onSend(email);
@@ -109,7 +106,22 @@ class _ForgotPasswordBottomSheetState extends State<ForgotPasswordBottomSheet> {
             prefixIcon: Icons.mail_outline,
             keyboardType: TextInputType.emailAddress,
             controller: _emailCtrl,
+            maxLength: 254,
           ),
+          if (_errorText != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text(
+                _errorText!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFB3261E),
+                  height: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
           const SizedBox(height: 22),
 
           SizedBox(

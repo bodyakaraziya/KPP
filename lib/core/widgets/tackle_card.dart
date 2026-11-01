@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/app_snackbar.dart';
 
 /// Допоміжний клас для стилізації різних категорій снастей
 class TackleStyle {
@@ -414,6 +416,7 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
               initialValue: widget.initialNotes,
               hintText: 'Характеристики, стан, особливості...',
               maxLines: 3,
+              maxLength: 500,
             ),
             const SizedBox(height: 22),
 
@@ -424,15 +427,12 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        widget.isEditing
-                            ? 'Снасть оновлено!'
-                            : 'Нову снасть додано до арсеналу!',
-                      ),
-                      duration: const Duration(seconds: 1),
-                    ),
+                  showAppSnackBar(
+                    context,
+                    message: widget.isEditing
+                        ? 'Снасть оновлено!'
+                        : 'Нову снасть додано до арсеналу!',
+                    isError: false,
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -498,10 +498,12 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
     String? initialValue,
     required String hintText,
     int maxLines = 1,
+    int maxLength = 100,
   }) {
     return TextFormField(
       initialValue: initialValue,
       maxLines: maxLines,
+      inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,
@@ -594,11 +596,10 @@ Future<void> showDeleteTackleDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Снасть видалено з довідника'),
-                          duration: Duration(seconds: 1),
-                        ),
+                      showAppSnackBar(
+                        context,
+                        message: 'Снасть видалено з довідника',
+                        isError: false,
                       );
                     },
                     child: const Text(
