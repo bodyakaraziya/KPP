@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/app_snackbar.dart';
+
 import 'action_buttons.dart';
 
 class TripCard extends StatelessWidget {
@@ -262,11 +264,10 @@ Future<void> showDeleteTripDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Виїзд видалено'),
-                          duration: Duration(seconds: 1),
-                        ),
+                      showAppSnackBar(
+                        context,
+                        message: 'Виїзд видалено',
+                        isError: false,
                       );
                     },
                     child: const Text(

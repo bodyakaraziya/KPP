@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/app_snackbar.dart';
 
 /// Допоміжний клас для стилізації різних категорій снастей
 class TackleStyle {
@@ -426,15 +427,12 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        widget.isEditing
-                            ? 'Снасть оновлено!'
-                            : 'Нову снасть додано до арсеналу!',
-                      ),
-                      duration: const Duration(seconds: 1),
-                    ),
+                  showAppSnackBar(
+                    context,
+                    message: widget.isEditing
+                        ? 'Снасть оновлено!'
+                        : 'Нову снасть додано до арсеналу!',
+                    isError: false,
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -598,11 +596,10 @@ Future<void> showDeleteTackleDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Снасть видалено з довідника'),
-                          duration: Duration(seconds: 1),
-                        ),
+                      showAppSnackBar(
+                        context,
+                        message: 'Снасть видалено з довідника',
+                        isError: false,
                       );
                     },
                     child: const Text(

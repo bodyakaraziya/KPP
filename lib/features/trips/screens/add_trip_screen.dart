@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../core/widgets/water_body_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tackle_card.dart';
+import '../../../core/utils/app_snackbar.dart';
 
 class AddTripScreen extends StatefulWidget {
   const AddTripScreen({super.key});
@@ -166,11 +167,10 @@ class _AddTripScreenState extends State<AddTripScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Виїзд успішно збережено!'),
-                          duration: Duration(seconds: 2),
-                        ),
+                      showAppSnackBar(
+                        context,
+                        message: 'Виїзд успішно збережено!',
+                        isError: false,
                       );
                     },
                     style: ElevatedButton.styleFrom(

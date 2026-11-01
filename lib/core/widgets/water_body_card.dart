@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/app_snackbar.dart';
 
 class WaterBodyCard extends StatelessWidget {
   final String imageUrl;
@@ -402,15 +403,12 @@ class _WaterBodyFormSheetContentState
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        widget.isEditing
-                            ? 'Зміни збережено!'
-                            : 'Нову водойму додано!',
-                      ),
-                      duration: const Duration(seconds: 1),
-                    ),
+                  showAppSnackBar(
+                    context,
+                    message: widget.isEditing
+                        ? 'Зміни збережено!'
+                        : 'Нову водойму додано!',
+                    isError: false,
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -578,11 +576,10 @@ Future<void> showDeleteWaterBodyDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Водойму видалено з довідника'),
-                          duration: Duration(seconds: 1),
-                        ),
+                      showAppSnackBar(
+                        context,
+                        message: 'Водойму видалено з довідника',
+                        isError: false,
                       );
                     },
                     child: const Text(
