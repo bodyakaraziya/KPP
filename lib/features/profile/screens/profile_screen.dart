@@ -287,9 +287,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     String? currentPassword;
     if (emailChanged) {
-      // Пошта вже зайнята іншим обліковим записом — повідомити одразу,
-      // а не завантажувати користувача очікуванням листа підтвердження.
-      final emailTaken = await _authRepository.isEmailTaken(newEmail);
+      // Перевіряємо зайнятість пошти через Firebase Auth і через Firestore
+      // (профілі користувачів), бо fetchSignInMethodsForEmail застарів і може
+      // не спрацьовувати через захист Firebase від перелічення пошт.
+      final currentUid = _authRepository.currentUser?.uid ?? '';
+      final emailTaken = await _authRepository.isEmailTaken(newEmail)
+          || await _authRepository.isEmailTakenByAnotherUser(
+              newEmail, currentUid);
       if (!mounted) return;
       if (emailTaken) {
         showAppSnackBar(
@@ -323,6 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       await _authRepository.saveProfileData(
         name: name,
         phone: phoneToSave ?? '',
+        email: emailChanged ? newEmail : _email,
       );
       if (!mounted) return;
 

@@ -42,6 +42,7 @@ class AuthRepository {
   Future<void> saveProfileData({
     required String name,
     required String phone,
+    String? email,
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) throw Exception('Користувача не знайдено');
@@ -50,6 +51,7 @@ class AuthRepository {
     await _userProfiles.doc(user.uid).set({
       'displayName': name,
       'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
     }, SetOptions(merge: true));
   }
 
@@ -175,6 +177,17 @@ class AuthRepository {
     try {
       final methods = await _firebaseAuth.fetchSignInMethodsForEmail(email);
       return methods.isNotEmpty;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  /// Перевіряє, чи Email вже використано іншим користувачем у профілях Firestore.
+  /// [currentUid] — uid поточного користувача, якого треба виняти з перевірки.
+  Future<bool> isEmailTakenByAnotherUser(String email, String currentUid) async {
+    try {
+      final query = await _userProfiles.where('email', isEqualTo: email).get();
+      return query.docs.any((doc) => doc.id != currentUid);
     } on FirebaseAuthException catch (e) {
       throw Exception(_translateAuthError(e.code));
     }
