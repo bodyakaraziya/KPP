@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'Увійдіть, щоб продовжити вести щоденник',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 20),
 
             AppTextField(
               label: 'Email',
@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
               maxLength: 254,
               validator: emailValidator(),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
             AppTextField(
               label: 'Пароль',
@@ -150,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
             _isLoading
                 ? const Center(
@@ -159,9 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   )
                 : AppButton(text: 'Увійти', onPressed: _handleLogin),
-            const SizedBox(height: 12),
-
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

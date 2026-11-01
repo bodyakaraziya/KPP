@@ -291,6 +291,11 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (currentPassword == null) return;
     }
 
+    // Переходимо у режим читання перед збереженням, щоб зміни стану автентифікації
+    // (викликані updateDisplayName всередині saveProfileData) коректно оновили інтерфейс
+    // і панель закривалася без затримки.
+    setState(() => _isEditingPersonal = false);
+
     try {
       if (emailChanged) {
         await _authRepository.updateEmail(
@@ -311,7 +316,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         _firstName = name;
         if (emailChanged) _pendingEmail = newEmail;
         _phone = phoneToSave ?? '';
-        _isEditingPersonal = false;
         _isPersonalExpanded = false; // Закриваємо панельку після збереження
       });
 

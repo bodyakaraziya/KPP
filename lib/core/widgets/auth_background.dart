@@ -107,7 +107,7 @@ class AuthBackground extends StatelessWidget {
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
-                              vertical: 30,
+                              vertical: 16,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white,

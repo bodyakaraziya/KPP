@@ -115,7 +115,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
 
               const Text(
                 'Створіть акаунт',
@@ -126,12 +125,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 6),
               const Text(
                 'Почніть зберігати свої рибальські історії',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: "Ім'я",
@@ -141,7 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 inputFormatters: [LengthLimitingTextInputFormatter(20)],
                 validator: requiredValidator(fieldName: "ім'я"),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: 'Email',
@@ -152,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 maxLength: 254,
                 validator: emailValidator(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: 'Пароль',
@@ -164,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 maxLength: 128,
                 validator: passwordValidator(minLength: 8),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               AppTextField(
                 label: 'Підтвердження пароля',
@@ -188,7 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       text: 'Зареєструватися',
                       onPressed: _handleRegister,
                     ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
