@@ -4,12 +4,14 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
 
-/// Форматер мобільного номера України з незмінним префіксом +380.
+/// Форматер цифр мобільного номера України (без префікса +380).
 ///
-/// Користувач може редагувати лише цифри після префікса; саме префікс
-/// залишається недоторканим.
-class PhoneMaskFormatter extends TextInputFormatter {
-  static const _prefix = '+380 ';
+/// Префікс `+380 ` відображається окремою нередагованою стрічкою, тому
+/// користувач ніколи не може поставити курсор на саме `+380` — лише на
+/// цифри. Цифри групуються за шаблоном 2-3-2-2 і обмежуються дев'ятю.
+class PhoneDigitsFormatter extends TextInputFormatter {
+  static const _maxDigits = 9;
+  static const _groups = [2, 3, 2, 2];
 
   @override
   TextEditingValue formatEditUpdate(
@@ -17,19 +19,13 @@ class PhoneMaskFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-
-    String local = digits;
-    if (local.startsWith('380')) {
-      local = local.substring(3);
-    }
-
-    if (local.length > 9) {
-      return oldValue;
-    }
+    final local = digits.length > _maxDigits
+        ? digits.substring(0, _maxDigits)
+        : digits;
 
     final groups = <String>[];
     int i = 0;
-    for (final len in [2, 3, 2, 2]) {
+    for (final len in _groups) {
       if (i >= local.length) break;
       final end = local.length < i + len ? local.length : i + len;
       groups.add(local.substring(i, end));
@@ -39,25 +35,11 @@ class PhoneMaskFormatter extends TextInputFormatter {
       groups.add(local.substring(i));
     }
 
-    final formatted = '$_prefix${groups.join(' ')}';
-
-    // Курсор не може знаходитися перед префіксом або на ньому.
-    final minIndex = _prefix.length;
-    final selectionStart = newValue.selection.start.clamp(
-      minIndex,
-      formatted.length,
-    );
-    final selectionEnd = newValue.selection.end.clamp(
-      minIndex,
-      formatted.length,
-    );
+    final formatted = groups.join(' ');
 
     return TextEditingValue(
       text: formatted,
-      selection: TextSelection(
-        baseOffset: selectionStart,
-        extentOffset: selectionEnd,
-      ),
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
@@ -179,6 +161,70 @@ class PersonalDataCard extends StatelessWidget {
     );
   }
 
+  Widget _buildPhoneField({
+    required TextEditingController controller,
+    required FormFieldValidator<String>? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel('Телефон'),
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          validator: validator,
+          inputFormatters: [PhoneDigitsFormatter()],
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.phone_outlined,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            prefixText: '+380 ',
+            prefixStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(
+                color: AppColors.primaryTeal,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Colors.red, width: 1.2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            ),
+            errorStyle: const TextStyle(fontSize: 12, color: Colors.red),
+            errorMaxLines: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildReadOnlyView() {
     return Column(
       children: [
@@ -236,14 +282,9 @@ class PersonalDataCard extends StatelessWidget {
           formatters: [LengthLimitingTextInputFormatter(254)],
         ),
         const SizedBox(height: 14),
-        _buildFieldLabel('Телефон'),
-        _buildInputField(
+        _buildPhoneField(
           controller: phoneCtrl,
-          prefixIcon: Icons.phone_outlined,
-          hintText: '+380 __ ___ __ __',
-          keyboardType: TextInputType.phone,
           validator: phoneValidator(),
-          formatters: [PhoneMaskFormatter()],
         ),
         const SizedBox(height: 18),
         Row(

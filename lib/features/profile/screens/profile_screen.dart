@@ -202,6 +202,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
+  /// Групує цифри номера за шаблоном 2-3-2-2 (наприклад 551234567 → 55 123 45 67).
+  String _groupDigits(String digits) {
+    final groups = <String>[];
+    var i = 0;
+    for (final len in [2, 3, 2, 2]) {
+      if (i >= digits.length) break;
+      final end = digits.length < i + len ? digits.length : i + len;
+      groups.add(digits.substring(i, end));
+      i = end;
+    }
+    if (i < digits.length) {
+      groups.add(digits.substring(i));
+    }
+    return groups.join(' ');
+  }
+
   Future<void> _savePersonalData() async {
     _unfocusPersonalDataEditor();
 
@@ -253,13 +269,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Нормалізація номера телефону
     final phoneText = _phoneCtrl.text.trim();
     String? phoneToSave;
-    if (phoneText.isNotEmpty && phoneText != '+380') {
+    if (phoneText.isNotEmpty) {
       final digits = phoneText.replaceAll(RegExp(r'\D'), '');
-      String number = digits;
-      if (number.startsWith('380')) {
-        number = number.substring(3);
-      }
-      if (number.isNotEmpty && number.length != 9) {
+      if (digits.isNotEmpty && digits.length != 9) {
         showAppSnackBar(
           context,
           title: 'Помилка',
@@ -268,8 +280,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
         return;
       }
-      if (number.length == 9) {
-        phoneToSave = phoneText;
+      if (digits.length == 9) {
+        phoneToSave = '+380 $phoneText';
       }
     }
 
@@ -449,9 +461,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                               setState(() {
                                 _firstNameCtrl.text = _firstName;
                                 _emailCtrl.text = _email;
-                                _phoneCtrl.text = _phone.isEmpty
-                                    ? '+380 '
-                                    : _phone;
+                                // У `_phone` префікс '+380' уже зберігається разом із номером,
+                                // тому перед групуванням прибираємо код країни, інакше в полі
+                                // з'явиться '+380 38 055 ...' замість '+380 55 ...'.
+                                final rawDigits =
+                                    _phone.replaceAll(RegExp(r'\D'), '');
+                                final localDigits = rawDigits.startsWith('380') &&
+                                        rawDigits.length == 12
+                                    ? rawDigits.substring(3)
+                                    : rawDigits;
+                                _phoneCtrl.text =
+                                    _groupDigits(localDigits);
                                 _isEditingPersonal = true;
                               });
                             },
