@@ -155,6 +155,16 @@ class AuthRepository {
     }
   }
 
+  /// Перевіряє, чи Email вже пов'язаний з якимсь обліковим записом Firebase.
+  Future<bool> isEmailTaken(String email) async {
+    try {
+      final methods = await _firebaseAuth.fetchSignInMethodsForEmail(email);
+      return methods.isNotEmpty;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
   // Повторно перевіряє пароль і надсилає підтвердження для нової пошти.
   Future<void> updateEmail({
     required String newEmail,

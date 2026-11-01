@@ -287,6 +287,20 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     String? currentPassword;
     if (emailChanged) {
+      // Пошта вже зайнята іншим обліковим записом — повідомити одразу,
+      // а не завантажувати користувача очікуванням листа підтвердження.
+      final emailTaken = await _authRepository.isEmailTaken(newEmail);
+      if (!mounted) return;
+      if (emailTaken) {
+        showAppSnackBar(
+          context,
+          title: 'Пошту не змінено',
+          message: 'Обліковий запис з таким Email вже існує.',
+          isError: true,
+        );
+        return;
+      }
+
       currentPassword = await _askForPassword();
       if (currentPassword == null) return;
     }
