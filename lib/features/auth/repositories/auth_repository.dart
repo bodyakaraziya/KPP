@@ -184,12 +184,13 @@ class AuthRepository {
 
   /// Перевіряє, чи Email вже використано іншим користувачем у профілях Firestore.
   /// [currentUid] — uid поточного користувача, якого треба виняти з перевірки.
+  /// Повертає false, якщо Firestore недоступний (наприклад, API вимкнено).
   Future<bool> isEmailTakenByAnotherUser(String email, String currentUid) async {
     try {
       final query = await _userProfiles.where('email', isEqualTo: email).get();
       return query.docs.any((doc) => doc.id != currentUid);
-    } on FirebaseAuthException catch (e) {
-      throw Exception(_translateAuthError(e.code));
+    } catch (_) {
+      return false;
     }
   }
 
