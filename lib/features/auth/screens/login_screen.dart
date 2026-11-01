@@ -56,6 +56,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      final user = _authRepository.currentUser;
+      if (user != null && !user.emailVerified) {
+        await _authRepository.signOut();
+        if (!mounted) return;
+        showAppSnackBar(
+          context,
+          title: 'Пошту не підтверджено',
+          message:
+              'Будь ласка, перевірте поштову скриньку та підтвердьте адресу електронної пошти перед входом.',
+          isError: true,
+        );
+        return;
+      }
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),

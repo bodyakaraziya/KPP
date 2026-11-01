@@ -103,6 +103,21 @@ class AuthRepository {
     }
   }
 
+  /// Надсилає лист із посиланням для підтвердження адреси електронної пошти.
+  Future<void> sendEmailVerification() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw Exception('Користувача не знайдено');
+
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_translateAuthError(e.code));
+    }
+  }
+
+  /// Чи підтверджена пошта поточного користувача.
+  bool get isEmailVerified => _firebaseAuth.currentUser?.emailVerified ?? false;
+
   // Вхід через Email та Пароль
   Future<UserCredential> signIn({
     required String email,

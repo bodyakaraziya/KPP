@@ -7,8 +7,8 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/auth_background.dart';
-import '../../main/screens/main_screen.dart';
 import '../repositories/auth_repository.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final AuthRepository? authRepository;
@@ -61,9 +61,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
+      // Надсилаємо лист для підтвердження адреси електронної пошти.
+      await _authRepository.sendEmailVerification();
+
+      if (!mounted) return;
+
+      showAppSnackBar(
+        context,
+        message:
+            'Лист для підтвердження пошти надіслано на ${_emailController.text.trim()}. Будь ласка, підтвердьте адресу перед входом.',
+        isError: false,
+      );
+
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
     } catch (e) {
