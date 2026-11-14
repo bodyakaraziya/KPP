@@ -1,76 +1,16 @@
-import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../statistics/screens/statistics_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
 import '../../trips/screens/trip_detail_screen.dart';
-import '../../statistics/screens/statistics_screen.dart';
-import '../../auth/repositories/auth_repository.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   final ValueChanged<int>? onNavigateTab;
 
   const HomeScreen({super.key, this.onNavigateTab});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final AuthRepository _authRepository = AuthRepository();
-  StreamSubscription<User?>? _authSubscription;
-  StreamSubscription<Map<String, dynamic>?>? _profileSubscription;
-
-  String _userName = 'Користувач';
-  String? _avatarUrl;
-  String _userInitial = 'К';
-
-  @override
-  void initState() {
-    super.initState();
-    _updateUser(_authRepository.currentUser);
-    _watchProfile(_authRepository.currentUser);
-    _authSubscription = _authRepository.authStateChanges.listen((user) {
-      if (!mounted) return;
-      _updateUser(user);
-      _watchProfile(user);
-    });
-  }
-
-  void _updateUser(User? user) {
-    _userName = (user?.displayName ?? '').trim().isNotEmpty
-        ? user!.displayName!
-        : 'Користувач';
-    _avatarUrl = user?.photoURL;
-    _userInitial = _userName.isNotEmpty ? _userName[0].toUpperCase() : 'К';
-    if (mounted) setState(() {});
-  }
-
-  void _watchProfile(User? user) {
-    _profileSubscription?.cancel();
-    if (user == null) return;
-    _profileSubscription = _authRepository.watchUserProfile(user.uid).listen((profile) {
-      if (!mounted || _authRepository.currentUser?.uid != user.uid) return;
-      final name = profile?['displayName'];
-      final avatar = profile?['photoURL'];
-      setState(() {
-        if (name is String && name.trim().isNotEmpty) {
-          _userName = name.trim();
-        }
-        _avatarUrl = avatar is String && avatar.trim().isNotEmpty ? avatar : null;
-        _userInitial = _userName.isNotEmpty ? _userName[0].toUpperCase() : 'К';
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    _profileSubscription?.cancel();
-    super.dispose();
-  }
 
   void _openTackleScreen(BuildContext context) {
     Navigator.push(
@@ -86,19 +26,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAvatar() {
-    if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+  Widget _buildAvatar(BuildContext context, String? avatarUrl, String userInitial) {
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 24,
         backgroundColor: AppColors.lightAmberBg,
-        backgroundImage: NetworkImage(_avatarUrl!),
+        backgroundImage: NetworkImage(avatarUrl),
       );
     }
     return CircleAvatar(
       radius: 24,
       backgroundColor: AppColors.lightAmberBg,
       child: Text(
-        _userInitial,
+        userInitial,
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -110,6 +50,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Дані користувача беруться реактивно з AuthProvider (лаба №5, завдання 3.1–3.2).
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+    final profile = auth.profile;
+
+    final userName = (profile?.displayName ?? user?.displayName ?? '')
+        .trim()
+        .isNotEmpty
+        ? (profile?.displayName ?? user?.displayName ?? 'Користувач')
+        : 'Користувач';
+    final avatarUrl = (profile?.photoURL ?? user?.photoURL ?? '').isNotEmpty
+        ? (profile?.photoURL ?? user?.photoURL)
+        : null;
+    final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : 'К';
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -126,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Шапка: Привітання + Аватар
-              _buildHeader(context),
+              _buildHeader(context, userName, avatarUrl, userInitial),
               const SizedBox(height: 22),
 
               // 2. Єдина картка "Статистика сезону" (в одному стилі з Арсеналом)
@@ -146,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String userName, String? avatarUrl, String userInitial) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -156,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Привіт, $_userName!',
+                'Привіт, $userName!',
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
@@ -177,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        _buildAvatar(),
+        _buildAvatar(context, avatarUrl, userInitial),
       ],
     );
   }

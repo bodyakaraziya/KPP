@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/tackle.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_snackbar.dart';
 
@@ -211,6 +212,9 @@ class TackleCard extends StatelessWidget {
 Future<void> showTackleFormSheet(
   BuildContext context, {
   bool isEditing = false,
+  String? id,
+  int initialTripsCount = 0,
+  ValueChanged<Tackle>? onSave,
   String? initialCategory,
   String? initialName,
   String? initialNotes,
@@ -224,6 +228,9 @@ Future<void> showTackleFormSheet(
     builder: (ctx) {
       return _TackleFormSheetContent(
         isEditing: isEditing,
+        id: id,
+        initialTripsCount: initialTripsCount,
+        onSave: onSave,
         initialCategory: initialCategory,
         initialName: initialName,
         initialNotes: initialNotes,
@@ -234,12 +241,18 @@ Future<void> showTackleFormSheet(
 
 class _TackleFormSheetContent extends StatefulWidget {
   final bool isEditing;
+  final String? id;
+  final int initialTripsCount;
+  final ValueChanged<Tackle>? onSave;
   final String? initialCategory;
   final String? initialName;
   final String? initialNotes;
 
   const _TackleFormSheetContent({
     required this.isEditing,
+    this.id,
+    this.initialTripsCount = 0,
+    this.onSave,
     this.initialCategory,
     this.initialName,
     this.initialNotes,
@@ -252,6 +265,8 @@ class _TackleFormSheetContent extends StatefulWidget {
 
 class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
   late String _selectedCategory;
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _notesCtrl;
 
   final List<String> _categories = const [
     'Вудка',
@@ -269,6 +284,15 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
             _categories.contains(widget.initialCategory))
         ? widget.initialCategory!
         : 'Вудка';
+    _nameCtrl = TextEditingController(text: widget.initialName ?? '');
+    _notesCtrl = TextEditingController(text: widget.initialNotes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -403,7 +427,7 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
               children: [
                 _buildLabel('Назва або модель'),
                 _buildTextField(
-                  initialValue: widget.initialName,
+                  controller: _nameCtrl,
                   hintText: 'Напр., Спінінг Favorite X1 2.1м',
                 ),
               ],
@@ -413,7 +437,7 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
             // Поле: Нотатки (необов'язково)
             _buildLabel("Нотатки (необов'язково)"),
             _buildTextField(
-              initialValue: widget.initialNotes,
+              controller: _notesCtrl,
               hintText: 'Характеристики, стан, особливості...',
               maxLines: 3,
               maxLength: 500,
@@ -426,7 +450,23 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
               height: 52,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
+                  final name = _nameCtrl.text.trim();
+                  if (name.isEmpty) {
+                    showAppSnackBar(
+                      context,
+                      message: 'Введіть назву снасті',
+                      isError: true,
+                    );
+                    return;
+                  }
+                  final item = Tackle(
+                    id: widget.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                    category: _selectedCategory,
+                    name: name,
+                    notes: _notesCtrl.text.trim(),
+                    tripsCount: widget.initialTripsCount,
+                  );
+                  widget.onSave?.call(item);
                   showAppSnackBar(
                     context,
                     message: widget.isEditing
@@ -434,6 +474,7 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
                         : 'Нову снасть додано до арсеналу!',
                     isError: false,
                   );
+                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryTeal,
@@ -496,11 +537,13 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
 
   Widget _buildTextField({
     String? initialValue,
+    TextEditingController? controller,
     required String hintText,
     int maxLines = 1,
     int maxLength = 100,
   }) {
     return TextFormField(
+      controller: controller,
       initialValue: initialValue,
       maxLines: maxLines,
       inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
@@ -539,7 +582,10 @@ class _TackleFormSheetContentState extends State<_TackleFormSheetContent> {
 }
 
 /// Діалогове вікно підтвердження видалення снасті (відповідно до макета Figma)
-Future<void> showDeleteTackleDialog(BuildContext context) {
+Future<void> showDeleteTackleDialog(
+  BuildContext context, {
+  VoidCallback? onDelete,
+}) {
   return showDialog(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.65),
@@ -596,6 +642,7 @@ Future<void> showDeleteTackleDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
+                      onDelete?.call();
                       showAppSnackBar(
                         context,
                         message: 'Снасть видалено з довідника',

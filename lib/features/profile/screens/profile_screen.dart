@@ -1,15 +1,17 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../auth/repositories/auth_repository.dart';
 import '../../statistics/screens/statistics_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/app_settings_card.dart';
 import '../widgets/forgot_password_bottom_sheet.dart';
 import '../widgets/password_card.dart';
@@ -29,26 +31,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     with WidgetsBindingObserver {
   final AuthRepository _authRepository = AuthRepository();
 
-  StreamSubscription<User?>? _authSubscription;
-  StreamSubscription<Map<String, dynamic>?>? _profileSubscription;
   Timer? _emailStatusTimer;
   bool _isRefreshingEmail = false;
-
-  // Поточні дані користувача
-  String _firstName = '';
-  String? _profileUid;
-  String _email = '';
-  String _phone = '';
-  String? _avatarUrl;
-
-  // Прапорці інтерфейсу
-  bool _isPersonalExpanded = false;
-  bool _isEditingPersonal = false;
-  bool _isPasswordFormOpen = false;
-  bool _isDarkTheme = false;
-  String _selectedLang = 'УКР';
-  bool _isMenuOpen = false;
-
   String? _pendingEmail;
 
   // Контролери
@@ -59,82 +43,43 @@ class _ProfileScreenState extends State<ProfileScreen>
   late final TextEditingController _newPasswordCtrl;
   late final TextEditingController _confirmPasswordCtrl;
 
+  // Прапорці інтерфейсу
+  bool _isPersonalExpanded = false;
+  bool _isEditingPersonal = false;
+  bool _isPasswordFormOpen = false;
+  bool _isMenuOpen = false;
+
   @override
   void initState() {
     super.initState();
-    _syncUser(_authRepository.currentUser);
-    _firstNameCtrl = TextEditingController(text: _firstName);
-    _emailCtrl = TextEditingController(text: _email);
-    _phoneCtrl = TextEditingController(text: _phone);
+    _firstNameCtrl = TextEditingController();
+    _emailCtrl = TextEditingController();
+    _phoneCtrl = TextEditingController();
     _currentPasswordCtrl = TextEditingController();
     _newPasswordCtrl = TextEditingController();
     _confirmPasswordCtrl = TextEditingController();
-    _watchProfile(_authRepository.currentUser);
     WidgetsBinding.instance.addObserver(this);
     unawaited(_refreshEmailStatus());
-
-    _authSubscription = _authRepository.authStateChanges.listen((user) {
-      if (!mounted || user == null) return;
-      final profileChanged = _profileUid != user.uid;
-      setState(() {
-        _syncUser(user);
-        // Оновлюємо тексти в полях ЛИШЕ якщо користувач зараз НЕ редагує профіль
-        if (!_isEditingPersonal) {
-          _emailCtrl.text = _email;
-          _phoneCtrl.text = _phone;
-          if (profileChanged) _firstNameCtrl.text = _firstName;
-        }
-      });
-      if (profileChanged) _watchProfile(user);
-    });
   }
-
-  void _watchProfile(User? user) {
-    _profileSubscription?.cancel();
-    if (user == null) return;
-    _profileSubscription = _authRepository.watchUserProfile(user.uid).listen((
-      profile,
-    ) {
-      if (!mounted || _authRepository.currentUser?.uid != user.uid) return;
-      final name = profile?['displayName'];
-      final avatar = profile?['photoURL'];
-      final phone = profile?['phone'];
-      setState(() {
-        if (name is String && name.trim().isNotEmpty) {
-          _firstName = name.trim();
-          if (!_isEditingPersonal) _firstNameCtrl.text = _firstName;
-        }
-        _avatarUrl = avatar is String && avatar.trim().isNotEmpty
-            ? avatar
-            : null;
-        if (phone is String) {
-          _phone = phone;
-          if (!_isEditingPersonal) _phoneCtrl.text = phone;
-        }
-      });
-    });
-  }
-
-  void _syncUser(User? user) {
-    if (_profileUid != user?.uid) {
-      _profileUid = user?.uid;
-      _firstName = (user?.displayName ?? '').trim().isNotEmpty
-          ? user!.displayName!
-          : 'Користувач';
-    }
-    _email = user?.email ?? '';
-    _avatarUrl = user?.photoURL;
-    if (_pendingEmail == _email) _pendingEmail = null;
-  }
-
-  String get _initial =>
-      _firstName.isNotEmpty ? _firstName[0].toUpperCase() : 'А';
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_refreshEmailStatus());
     }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _emailStatusTimer?.cancel();
+    _firstNameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _currentPasswordCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    super.dispose();
   }
 
   void _startEmailStatusPolling() {
@@ -156,16 +101,15 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (!mounted || user == null) return;
 
       if (expectedEmail != null && user.email == expectedEmail) {
-        // Після підтвердження Email змушуємо користувача увійти заново.
         _emailStatusTimer?.cancel();
         await _authRepository.signOut();
         return;
       }
 
+      if (!mounted) return;
       setState(() {
-        _syncUser(user);
         if (!_isEditingPersonal) {
-          _emailCtrl.text = _email;
+          _emailCtrl.text = user.email ?? '';
         }
       });
     } catch (_) {
@@ -173,21 +117,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     } finally {
       _isRefreshingEmail = false;
     }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _emailStatusTimer?.cancel();
-    _authSubscription?.cancel();
-    _profileSubscription?.cancel();
-    _firstNameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    _currentPasswordCtrl.dispose();
-    _newPasswordCtrl.dispose();
-    _confirmPasswordCtrl.dispose();
-    super.dispose();
   }
 
   // --- Особисті дані ---
@@ -221,6 +150,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _savePersonalData() async {
     _unfocusPersonalDataEditor();
 
+    final auth = context.read<AuthProvider>();
+    final currentEmail = auth.user?.email ?? '';
+    final currentUid = auth.user?.uid ?? '';
+
     final name = _firstNameCtrl.text.trim();
     if (name.isEmpty) {
       showAppSnackBar(
@@ -235,14 +168,14 @@ class _ProfileScreenState extends State<ProfileScreen>
       showAppSnackBar(
         context,
         title: 'Помилка',
-        message: 'Ім\'я не може містити більше 20 символів.',
+        message: "Ім'я не може містити більше 20 символів.",
         isError: true,
       );
       return;
     }
 
     final newEmail = _emailCtrl.text.trim();
-    final emailChanged = newEmail.isNotEmpty && newEmail != _email;
+    final emailChanged = newEmail.isNotEmpty && newEmail != currentEmail;
     if (emailChanged && !_authRepository.usesPasswordProvider) {
       showAppSnackBar(
         context,
@@ -287,10 +220,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     String? currentPassword;
     if (emailChanged) {
-      // Перевіряємо зайнятість пошти через Firebase Auth і через Firestore
-      // (профілі користувачів), бо fetchSignInMethodsForEmail застарів і може
-      // не спрацьовувати через захист Firebase від перелічення пошт.
-      final currentUid = _authRepository.currentUser?.uid ?? '';
       final emailTaken = await _authRepository.isEmailTaken(newEmail)
           || await _authRepository.isEmailTakenByAnotherUser(
               newEmail, currentUid);
@@ -309,9 +238,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (currentPassword == null) return;
     }
 
-    // Переходимо у режим читання перед збереженням, щоб зміни стану автентифікації
-    // (викликані updateDisplayName всередині saveProfileData) коректно оновили інтерфейс
-    // і панель закривалася без затримки.
     setState(() => _isEditingPersonal = false);
 
     try {
@@ -324,17 +250,14 @@ class _ProfileScreenState extends State<ProfileScreen>
         setState(() => _pendingEmail = newEmail);
         _startEmailStatusPolling();
       }
-      await _authRepository.saveProfileData(
-        name: name,
+      await auth.updateProfile(
+        displayName: name,
         phone: phoneToSave ?? '',
-        email: emailChanged ? newEmail : _email,
+        email: emailChanged ? newEmail : currentEmail,
       );
       if (!mounted) return;
 
       setState(() {
-        _firstName = name;
-        if (emailChanged) _pendingEmail = newEmail;
-        _phone = phoneToSave ?? '';
         _isPersonalExpanded = false; // Закриваємо панельку після збереження
       });
 
@@ -348,8 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (e) {
       if (!mounted) return;
       final message = authErrorMessage(e);
-      // Якщо пошта вже зайнята іншим обліковим записом — показуємо чітке
-      // повідомлення замість загальної «Помилки збереження».
       final isEmailTaken = message.contains('вже існує')
           || message.contains('вже використовуються');
       if (isEmailTaken) {
@@ -432,10 +353,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Future<void> _signOut() => _authRepository.signOut();
+  Future<void> _signOut() => context.read<AuthProvider>().signOut();
 
   @override
   Widget build(BuildContext context) {
+    // Дані користувача беруться реактивно з AuthProvider (лаба №5, завдання 3.1–3.2).
+    final auth = context.watch<AuthProvider>();
+    final settings = context.watch<SettingsProvider>();
+    final user = auth.user;
+    final profile = auth.profile;
+
+    final firstName = (profile?.displayName ?? user?.displayName ?? '')
+        .trim()
+        .isNotEmpty
+        ? (profile?.displayName ?? user?.displayName ?? 'Користувач')
+        : 'Користувач';
+    final email = profile?.email ?? user?.email ?? '';
+    final phone = profile?.phone ?? '';
+    final avatarUrl = (profile?.photoURL ?? user?.photoURL ?? '').isNotEmpty
+        ? (profile?.photoURL ?? user?.photoURL)
+        : null;
+    final initial = firstName.isNotEmpty ? firstName[0].toUpperCase() : 'А';
+
     final hasPassword = _authRepository.usesPasswordProvider;
 
     return Container(
@@ -474,16 +413,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           UserSummaryCard(
-                            name: _firstName,
-                            avatarUrl: _avatarUrl,
-                            initial: _initial,
+                            name: firstName,
+                            avatarUrl: avatarUrl,
+                            initial: initial,
                             onAvatarTap: () => _showPickPhotoDialog(),
                           ),
                           const SizedBox(height: 14),
                           PersonalDataCard(
-                            name: _firstName,
-                            email: _email,
-                            phone: _phone,
+                            name: firstName,
+                            email: email,
+                            phone: phone,
                             isExpanded: _isPersonalExpanded,
                             isEditing: _isEditingPersonal,
                             onExpandToggle: () {
@@ -496,19 +435,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                             },
                             onEditTap: () {
                               setState(() {
-                                _firstNameCtrl.text = _firstName;
-                                _emailCtrl.text = _email;
-                                // У `_phone` префікс '+380' уже зберігається разом із номером,
-                                // тому перед групуванням прибираємо код країни, інакше в полі
-                                // з'явиться '+380 38 055 ...' замість '+380 55 ...'.
-                                final rawDigits =
-                                    _phone.replaceAll(RegExp(r'\D'), '');
+                                _firstNameCtrl.text = firstName;
+                                _emailCtrl.text = email;
+                                final rawDigits = phone.replaceAll(
+                                  RegExp(r'\D'),
+                                  '',
+                                );
                                 final localDigits = rawDigits.startsWith('380') &&
                                         rawDigits.length == 12
                                     ? rawDigits.substring(3)
                                     : rawDigits;
-                                _phoneCtrl.text =
-                                    _groupDigits(localDigits);
+                                _phoneCtrl.text = _groupDigits(localDigits);
                                 _isEditingPersonal = true;
                               });
                             },
@@ -555,14 +492,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ],
                           const SizedBox(height: 14),
                           AppSettingsCard(
-                            isDarkTheme: _isDarkTheme,
-                            selectedLang: _selectedLang,
+                            isDarkTheme: settings.isDarkTheme,
+                            selectedLang: settings.language,
                             onThemeLight: () =>
-                                setState(() => _isDarkTheme = false),
+                                settings.setTheme(false),
                             onThemeDark: () =>
-                                setState(() => _isDarkTheme = true),
+                                settings.setTheme(true),
                             onLangChanged: (lang) =>
-                                setState(() => _selectedLang = lang),
+                                settings.setLanguage(lang),
                           ),
                           const SizedBox(height: 14),
                           PasswordCard(
@@ -703,9 +640,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       onSelect: (url) async {
         try {
-          await _authRepository.saveProfileAvatar(url);
+          await context.read<AuthProvider>().updateAvatar(url);
           if (!mounted) return;
-          setState(() => _avatarUrl = url);
+          setState(() {});
           showAppSnackBar(
             context,
             message: url == null ? 'Аватар видалено.' : 'Аватар оновлено.',
@@ -727,7 +664,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _showForgotPasswordBottomSheet() {
     showForgotPasswordBottomSheet(
       context: context,
-      initialEmail: _email,
+      initialEmail: context.read<AuthProvider>().user?.email ?? '',
       onSend: (email) async {
         Navigator.pop(context);
         try {
@@ -742,7 +679,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           if (!mounted) return;
           showAppSnackBar(
             context,
-            title: 'Помилка відновлення пароля',
+            title: 'Помилка відновлення паролю',
             message: authErrorMessage(e),
             isError: true,
           );

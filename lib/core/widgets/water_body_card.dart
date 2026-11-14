@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/water_body.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_snackbar.dart';
 
@@ -128,6 +131,9 @@ class WaterBodyCard extends StatelessWidget {
 Future<void> showWaterBodyFormSheet(
   BuildContext context, {
   bool isEditing = false,
+  String? id,
+  int initialTripsCount = 0,
+  ValueChanged<WaterBody>? onSave,
   String? initialName,
   String? initialType,
   String? initialLocation,
@@ -143,6 +149,9 @@ Future<void> showWaterBodyFormSheet(
     builder: (ctx) {
       return _WaterBodyFormSheetContent(
         isEditing: isEditing,
+        id: id,
+        initialTripsCount: initialTripsCount,
+        onSave: onSave,
         initialName: initialName,
         initialType: initialType,
         initialLocation: initialLocation,
@@ -155,6 +164,9 @@ Future<void> showWaterBodyFormSheet(
 
 class _WaterBodyFormSheetContent extends StatefulWidget {
   final bool isEditing;
+  final String? id;
+  final int initialTripsCount;
+  final ValueChanged<WaterBody>? onSave;
   final String? initialName;
   final String? initialType;
   final String? initialLocation;
@@ -163,6 +175,9 @@ class _WaterBodyFormSheetContent extends StatefulWidget {
 
   const _WaterBodyFormSheetContent({
     required this.isEditing,
+    this.id,
+    this.initialTripsCount = 0,
+    this.onSave,
     this.initialName,
     this.initialType,
     this.initialLocation,
@@ -178,6 +193,10 @@ class _WaterBodyFormSheetContent extends StatefulWidget {
 class _WaterBodyFormSheetContentState
     extends State<_WaterBodyFormSheetContent> {
   late String _selectedType;
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _locationCtrl;
+  late final TextEditingController _notesCtrl;
+
 
   final List<String> _waterTypes = const [
     'Озеро',
@@ -194,6 +213,17 @@ class _WaterBodyFormSheetContentState
         (widget.initialType != null && _waterTypes.contains(widget.initialType))
         ? widget.initialType!
         : 'Озеро';
+    _nameCtrl = TextEditingController(text: widget.initialName ?? '');
+    _locationCtrl = TextEditingController(text: widget.initialLocation ?? '');
+    _notesCtrl = TextEditingController(text: widget.initialNotes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _locationCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -402,7 +432,25 @@ class _WaterBodyFormSheetContentState
               height: 52,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
+                  final name = _nameCtrl.text.trim();
+                  if (name.isEmpty) {
+                    showAppSnackBar(
+                      context,
+                      message: 'Введіть назву водойми',
+                      isError: true,
+                    );
+                    return;
+                  }
+                  final body = WaterBody(
+                    id: widget.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: name,
+                    type: _selectedType,
+                    location: _locationCtrl.text.trim(),
+                    notes: _notesCtrl.text.trim(),
+                    imageUrl: photoUrl,
+                    tripsCount: widget.initialTripsCount,
+                  );
+                  widget.onSave?.call(body);
                   showAppSnackBar(
                     context,
                     message: widget.isEditing
@@ -410,6 +458,7 @@ class _WaterBodyFormSheetContentState
                         : 'Нову водойму додано!',
                     isError: false,
                   );
+                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryTeal,
@@ -519,7 +568,10 @@ class _WaterBodyFormSheetContentState
 }
 
 /// Діалогове вікно підтвердження видалення водойми (відповідно до макета Figma)
-Future<void> showDeleteWaterBodyDialog(BuildContext context) {
+Future<void> showDeleteWaterBodyDialog(
+  BuildContext context, {
+  VoidCallback? onDelete,
+}) {
   return showDialog(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.65),
@@ -576,6 +628,7 @@ Future<void> showDeleteWaterBodyDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
+                      onDelete?.call();
                       showAppSnackBar(
                         context,
                         message: 'Водойму видалено з довідника',

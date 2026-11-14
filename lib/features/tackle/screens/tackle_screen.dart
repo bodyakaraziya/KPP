@@ -1,81 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/tackle_card.dart';
 import '../../../core/widgets/app_fab.dart';
+import '../../../core/widgets/tackle_card.dart';
+import '../providers/tackle_provider.dart';
 import 'tackle_detail_screen.dart';
 
-class TackleScreen extends StatefulWidget {
+class TackleScreen extends StatelessWidget {
   const TackleScreen({super.key});
 
   @override
-  State<TackleScreen> createState() => _TackleScreenState();
-}
-
-class _TackleScreenState extends State<TackleScreen> {
-  String _selectedFilter = 'Усі';
-
-  // Hardcoded-список із 7 снастей відповідно до макета Figma
-  static const List<Map<String, String>> _allTackle = [
-    {
-      'category': 'Вудка',
-      'name': 'Спінінг Favorite X1 2.1м',
-      'notes': 'Тест 7–28г. Основний спінінг для щуки.',
-      'tripsCount': '12 виїздів',
-    },
-    {
-      'category': 'Котушка',
-      'name': 'Shimano Nasci C3000',
-      'notes': 'Передавальне число 6.2:1. Бездоганна намотка.',
-      'tripsCount': '12 виїздів',
-    },
-    {
-      'category': 'Вудка',
-      'name': 'Brain Apex Feeder 3.6м',
-      'notes': 'Фідерне вудилище, тест до 90г.',
-      'tripsCount': '7 виїздів',
-    },
-    {
-      'category': 'Приманка',
-      'name': 'Lucky John Tioga 3.5" Pearl',
-      'notes': 'Їстівний силікон для джигу на судака та щуку.',
-      'tripsCount': '9 виїздів',
-    },
-    {
-      'category': 'Приманка',
-      'name': 'Воблер Rapala X-Rap 10',
-      'notes': 'Суспендер для твічингу на глибині 1.2–1.8м.',
-      'tripsCount': '5 виїздів',
-    },
-    {
-      'category': 'Наживка',
-      'name': 'Helicopter Rig з кукурудзою',
-      'notes': 'Монтаж для лову коропа та великого ляща.',
-      'tripsCount': '4 виїзди',
-    },
-    {
-      'category': 'Наживка',
-      'name': "Черв'як дощовий",
-      'notes': 'Універсальна наживка для поплавця та фідера.',
-      'tripsCount': '6 виїздів',
-    },
-  ];
-
-  List<Map<String, String>> get _filteredTackle {
-    if (_selectedFilter == 'Усі') return _allTackle;
-    return _allTackle
-        .where((item) => item['category'] == _selectedFilter)
-        .toList();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final items = _filteredTackle;
+    // Снасті беруться з TackleProvider (лаба №5, завдання 3.3–3.4).
+    final provider = context.watch<TackleProvider>();
+    final tackles = provider.tackles;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundBottom,
       floatingActionButton: AppFab(
-        onPressed: () => showTackleFormSheet(context),
+        onPressed: () => showTackleFormSheet(
+          context,
+          onSave: (item) => context.read<TackleProvider>().addTackle(item),
+        ),
         icon: Icons.add,
         heroTag: 'tackle_screen_fab',
       ),
@@ -129,13 +76,13 @@ class _TackleScreenState extends State<TackleScreen> {
                 const SizedBox(height: 20),
 
                 // 2. Фільтри категорій з лічильниками
-                _buildCategoryFilters(),
+                _buildCategoryFilters(context, provider),
                 const SizedBox(height: 18),
 
                 const Divider(color: AppColors.cardBorder, height: 1),
                 const SizedBox(height: 20),
 
-                // 3. Заголовок "Мій арсенал [7]"
+                // 3. Заголовок "Мій арсенал [N]"
                 Row(
                   children: [
                     const Text(
@@ -157,7 +104,7 @@ class _TackleScreenState extends State<TackleScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '${items.length}',
+                        '${tackles.length}',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
@@ -169,28 +116,28 @@ class _TackleScreenState extends State<TackleScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 4. Список карток снастей
+                // 4. Список карток снастей (даних з TackleProvider)
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: items.length,
+                  itemCount: tackles.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
-                    final item = items[index];
+                    final t = tackles[index];
                     return TackleCard(
-                      category: item['category']!,
-                      name: item['name']!,
-                      notes: item['notes']!,
-                      tripsCount: item['tripsCount']!,
+                      category: t.category,
+                      name: t.name,
+                      notes: t.notes,
+                      tripsCount: '${t.tripsCount} виїздів',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => TackleDetailScreen(
-                              category: item['category']!,
-                              name: item['name']!,
-                              notes: item['notes']!,
-                              tripsCount: item['tripsCount']!,
+                              category: t.category,
+                              name: t.name,
+                              notes: t.notes,
+                              tripsCount: '${t.tripsCount} виїздів',
                             ),
                           ),
                         );
@@ -198,11 +145,19 @@ class _TackleScreenState extends State<TackleScreen> {
                       onEdit: () => showTackleFormSheet(
                         context,
                         isEditing: true,
-                        initialCategory: item['category'],
-                        initialName: item['name'],
-                        initialNotes: item['notes'],
+                        id: t.id,
+                        initialTripsCount: t.tripsCount,
+                        onSave: (updated) =>
+                            context.read<TackleProvider>().updateTackle(t.id, updated),
+                        initialCategory: t.category,
+                        initialName: t.name,
+                        initialNotes: t.notes,
                       ),
-                      onDelete: () => showDeleteTackleDialog(context),
+                      onDelete: () => showDeleteTackleDialog(
+                        context,
+                        onDelete: () =>
+                            context.read<TackleProvider>().deleteTackle(t.id),
+                      ),
                     );
                   },
                 ),
@@ -276,26 +231,22 @@ class _TackleScreenState extends State<TackleScreen> {
     );
   }
 
-  Widget _buildCategoryFilters() {
-    final List<Map<String, dynamic>> filters = [
-      {'label': 'Усі', 'count': 7},
-      {'label': 'Вудка', 'count': 2},
-      {'label': 'Котушка', 'count': 1},
-      {'label': 'Приманка', 'count': 2},
-      {'label': 'Наживка', 'count': 2},
-      {'label': 'Інше', 'count': null},
-    ];
+  Widget _buildCategoryFilters(BuildContext context, TackleProvider provider) {
+    final labels = ['Усі', ...provider.categories];
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: filters.map((f) {
-        final String label = f['label'] as String;
-        final int? count = f['count'] as int?;
-        final bool isSelected = _selectedFilter == label;
+      children: labels.map((label) {
+        final bool isSelected = provider.filterCategory == label;
+        final int count = label == 'Усі'
+            ? provider.tackles.length
+            : provider.tackles.where((t) => t.category == label).length;
 
         return InkWell(
-          onTap: () => setState(() => _selectedFilter = label),
+          onTap: () => provider.setFilterCategory(
+            label == 'Усі' ? null : label,
+          ),
           borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -324,31 +275,29 @@ class _TackleScreenState extends State<TackleScreen> {
                         : AppColors.textSecondary,
                   ),
                 ),
-                if (count != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primaryTeal
+                        : const Color(0xFFE4ECE9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
                       color: isSelected
-                          ? AppColors.primaryTeal
-                          : const Color(0xFFE4ECE9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.textPrimary,
-                      ),
+                          ? Colors.white
+                          : AppColors.textPrimary,
                     ),
                   ),
-                ],
+                ),
               ],
             ),
           ),

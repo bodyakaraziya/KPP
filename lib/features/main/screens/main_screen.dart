@@ -1,12 +1,10 @@
-import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_fab.dart';
-import '../../auth/repositories/auth_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../trips/screens/trips_screen.dart';
@@ -24,28 +22,34 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final AuthRepository _authRepository = AuthRepository();
-  StreamSubscription<User?>? _authSubscription;
   int _currentIndex = -1;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    _authSubscription = _authRepository.authStateChanges.listen((user) {
-      if (user == null && mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (_) => false,
-        );
-      }
-    });
+    final auth = context.read<AuthProvider>();
+    _checkAuth(auth);
+    auth.addListener(() => _checkAuth(auth));
+  }
+
+  void _checkAuth(AuthProvider auth) {
+    if (auth.user == null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (_) => false,
+          );
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
+    // AuthProvider lives in MultiProvider (main.dart), seu dispose не викликаємо тут.
     super.dispose();
   }
 
@@ -57,6 +61,13 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    // Якщо користувач не авторизований — показуємо екран входу.
+    if (auth.user == null) {
+      return const LoginScreen();
+    }
+
     final List<Widget> screens = [
       HomeScreen(onNavigateTab: _switchTab),
       const TripsScreen(),

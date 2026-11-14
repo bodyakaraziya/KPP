@@ -1,51 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_fab.dart';
 import '../../../core/widgets/trip_card.dart';
+import '../providers/trips_provider.dart';
 import 'add_trip_screen.dart';
 import 'trip_detail_screen.dart';
 
 class TripsScreen extends StatelessWidget {
   const TripsScreen({super.key});
 
-  // Hardcoded-список виїздів для демонстрації UI
-  static const List<Map<String, String>> _mockTrips = [
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80',
-      'temperature': '+18°C',
-      'date': '24 травня · 06:20',
-      'location': 'Дніпровська затока',
-      'fishName': 'Щука',
-      'weight': '4,8 кг',
-    },
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80',
-      'temperature': '+14°C',
-      'date': '18 травня · 05:45',
-      'location': 'Озеро Біле',
-      'fishName': 'Окунь',
-      'weight': '2,1 кг',
-    },
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1499363536502-87642509e31b?auto=format&fit=crop&w=900&q=80',
-      'temperature': '+21°C',
-      'date': '10 травня · 07:00',
-      'location': 'Річка Десна',
-      'fishName': 'Судак',
-      'weight': '3,4 кг',
-    },
-    {
-      'imageUrl':
-          'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80',
-      'temperature': '+16°C',
-      'date': '2 травня · 05:15',
-      'location': 'Київське водосховище',
-      'fishName': 'Лящ',
-      'weight': '5,2 кг',
-    },
+  static const List<String> _months = [
+    'Січ', 'Лют', 'Бер', 'Кві', 'Трав', 'Черв',
+    'Лип', 'Серп', 'Вер', 'Жовт', 'Лист', 'Гру',
   ];
+
+  String _formatDate(DateTime date) {
+    final h = date.hour.toString().padLeft(2, '0');
+    final m = date.minute.toString().padLeft(2, '0');
+    return '${date.day} ${_months[date.month - 1]} · $h:$m';
+  }
 
   void _openAddTrip(BuildContext context) {
     Navigator.push(
@@ -56,7 +31,10 @@ class TripsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Перевіряємо, чи екран відкрито через Navigator.push (з бургер-меню)
+    // Список виїздів беремо із провайдера стану (лаба №5, завдання 3.3).
+    final tripsProvider = context.watch<TripsProvider>();
+    final trips = tripsProvider.trips;
+
     final bool canPop = Navigator.canPop(context);
 
     return Scaffold(
@@ -76,7 +54,6 @@ class TripsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Показуємо кнопку "Назад", тільки якщо відкрили з меню профілю
                 if (canPop) ...[
                   InkWell(
                     onTap: () => Navigator.pop(context),
@@ -112,12 +89,12 @@ class TripsScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // 2. Панель фільтрів (Водойма, Дата, Вид риби)
-                _buildFiltersBar(),
+                _buildFiltersBar(context, tripsProvider),
                 const SizedBox(height: 20),
 
-                // 3. Лічильник записів
+                // 3. Лічильник записів (реактивно з провайдера)
                 Text(
-                  '${_mockTrips.length} записи',
+                  '${trips.length} записи',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -126,31 +103,37 @@ class TripsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // 4. Список карток виїздів
+                // 4. Список карток виїздів (даних з TripsProvider)
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _mockTrips.length,
+                  itemCount: trips.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    final trip = _mockTrips[index];
+                    final trip = trips[index];
                     return TripCard(
-                      imageUrl: trip['imageUrl']!,
-                      temperature: trip['temperature']!,
-                      date: trip['date']!,
-                      location: trip['location']!,
-                      fishName: trip['fishName']!,
-                      weight: trip['weight']!,
+                      imageUrl: trip.imageUrl,
+                      temperature: trip.temperature,
+                      date: _formatDate(trip.date),
+                      location: trip.location,
+                      fishName:
+                          trip.catchItems.isNotEmpty
+                              ? trip.catchItems.first.fishName
+                              : '',
+                      weight:
+                          trip.catchItems.isNotEmpty
+                              ? trip.catchItems.first.weight
+                              : '',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => TripDetailScreen(
-                              tripName: trip['location']!,
-                              tripDate: trip['date']!,
-                              tripLocation: trip['location']!,
-                              imageUrl: trip['imageUrl']!,
-                              temperature: trip['temperature']!,
+                              tripName: trip.location,
+                              tripDate: _formatDate(trip.date),
+                              tripLocation: trip.location,
+                              imageUrl: trip.imageUrl,
+                              temperature: trip.temperature,
                             ),
                           ),
                         );
@@ -165,6 +148,12 @@ class TripsScreen extends StatelessWidget {
           ),
         ),
       ),
+      floatingActionButton: AppFab(
+        heroTag: 'trips_screen_fab',
+        onPressed: () => _openAddTrip(context),
+        icon: Icons.add,
+      ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
     );
   }
 
@@ -230,9 +219,8 @@ class TripsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFiltersBar() {
-    bool isExpanded =
-        false; // Зміни на true, якщо хочеш, щоб за замовчуванням був розкритий
+  Widget _buildFiltersBar(BuildContext context, TripsProvider provider) {
+    bool isExpanded = false;
 
     return StatefulBuilder(
       builder: (context, setState) {
@@ -307,7 +295,7 @@ class TripsScreen extends StatelessWidget {
                 ),
               ),
 
-              // Розгорнута частина (чистий UI без логіки)
+              // Розгорнута частина
               if (isExpanded) ...[
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
@@ -318,9 +306,19 @@ class TripsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Фільтр за водоймою — пов'язаний з TripsProvider
                       _buildFilterDropdown(
                         label: 'Водойма',
-                        value: 'Усі водойми',
+                        value: provider.filterWaterBody ?? 'Усі водойми',
+                        items: const ['Усі водойми']
+                            ..addAll(provider.waterBodies),
+                        onChanged: (val) {
+                          if (val == null || val == 'Усі водойми') {
+                            provider.setFilterWaterBody(null);
+                          } else {
+                            provider.setFilterWaterBody(val);
+                          }
+                        },
                       ),
                       const SizedBox(height: 14),
                       _buildFilterDropdown(
@@ -347,7 +345,7 @@ class TripsScreen extends StatelessWidget {
                             ),
                           ),
                           child: const Text(
-                            'Показати 4 виїзди',
+                            'Показати виїзди',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -366,7 +364,12 @@ class TripsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFilterDropdown({required String label, required String value}) {
+  Widget _buildFilterDropdown({
+    required String label,
+    required String value,
+    List<String>? items,
+    ValueChanged<String?>? onChanged,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -386,23 +389,25 @@ class TripsScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.cardBorder, width: 1.2),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              items: (items ?? [value])
+                  .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                  .toList(),
+              onChanged: onChanged,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-              const Icon(
+              icon: const Icon(
                 Icons.keyboard_arrow_down,
                 color: AppColors.textSecondary,
                 size: 20,
               ),
-            ],
+            ),
           ),
         ),
       ],

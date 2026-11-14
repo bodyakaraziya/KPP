@@ -1,43 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_fab.dart';
 import '../../../core/widgets/water_body_card.dart';
+import '../providers/water_bodies_provider.dart';
 import 'water_body_detail_screen.dart';
 
 class WaterBodiesScreen extends StatelessWidget {
   const WaterBodiesScreen({super.key});
 
-  static const List<Map<String, String>> _mockWaterBodies = [
-    {
-      'name': 'Дніпровська затока',
-      'type': 'Річкова затока',
-      'location': 'Київська обл., Вишгородський р-н',
-      'notes': 'Глибина до 6 м, багато щуки в очереті.',
-      'tripsCount': '2 виїзди',
-      'imageUrl': 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      'name': 'Озеро Біле',
-      'type': 'Озеро',
-      'location': 'Рівненська обл., Вараський р-н',
-      'notes':
-          'Чиста вода, піщане дно. Гарний кльов окуня та щуки на світанку.',
-      'tripsCount': '1 виїзд',
-      'imageUrl': 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      'name': 'Річка Стугна',
-      'type': 'Річка',
-      'location': 'Київська обл., Обухівський р-н',
-      'notes': 'Тиха річка. Плотва та краснопірка.',
-      'tripsCount': '1 виїзд',
-      'imageUrl': 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    // Водойми беруться з WaterBodiesProvider (лаба №5, завдання 3.3–3.4).
+    final provider = context.watch<WaterBodiesProvider>();
+    final waterBodies = provider.waterBodies;
+
     final bool canPop = Navigator.canPop(context);
 
     return Scaffold(
@@ -89,31 +67,46 @@ class WaterBodiesScreen extends StatelessWidget {
 
                 // Шапка
                 _buildHeader(context),
-                const SizedBox(height: 22),
+                const SizedBox(height: 16),
 
-                // Список карток водойм
+                // Фільтр за типом водойми
+                _buildTypeFilter(context, provider),
+                const SizedBox(height: 20),
+
+                // Лічильник записів
+                Text(
+                  '${waterBodies.length} записів',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Список карток водойм (даних з WaterBodiesProvider)
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _mockWaterBodies.length,
+                  itemCount: waterBodies.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
-                    final item = _mockWaterBodies[index];
+                    final wb = waterBodies[index];
                     return WaterBodyCard(
-                      imageUrl: item['imageUrl']!,
-                      type: item['type']!,
-                      name: item['name']!,
-                      subtitle: '${item['location']} · ${item['tripsCount']}',
+                      imageUrl: wb.imageUrl,
+                      type: wb.type,
+                      name: wb.name,
+                      subtitle: '${wb.location} · ${wb.tripsCount} виїздів',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => WaterBodyDetailScreen(
-                              name: item['name']!,
-                              type: item['type']!,
-                              location: item['location']!,
-                              notes: item['notes']!,
-                              imageUrl: item['imageUrl']!,
+                              name: wb.name,
+                              type: wb.type,
+                              location: wb.location,
+                              notes: wb.notes,
+                              imageUrl: wb.imageUrl,
                             ),
                           ),
                         );
@@ -121,13 +114,21 @@ class WaterBodiesScreen extends StatelessWidget {
                       onEdit: () => showWaterBodyFormSheet(
                         context,
                         isEditing: true,
-                        initialName: item['name'],
-                        initialType: item['type'],
-                        initialLocation: item['location'],
-                        initialNotes: item['notes'],
-                        initialImageUrl: item['imageUrl'],
+                        id: wb.id,
+                        initialTripsCount: wb.tripsCount,
+                        onSave: (updated) =>
+                            context.read<WaterBodiesProvider>().updateWaterBody(wb.id, updated),
+                        initialName: wb.name,
+                        initialType: wb.type,
+                        initialLocation: wb.location,
+                        initialNotes: wb.notes,
+                        initialImageUrl: wb.imageUrl,
                       ),
-                      onDelete: () => showDeleteWaterBodyDialog(context),
+                      onDelete: () => showDeleteWaterBodyDialog(
+                        context,
+                        onDelete: () =>
+                            context.read<WaterBodiesProvider>().deleteWaterBody(wb.id),
+                      ),
                     );
                   },
                 ),
@@ -138,7 +139,11 @@ class WaterBodiesScreen extends StatelessWidget {
       ),
       floatingActionButton: AppFab(
         heroTag: 'water_bodies_screen_fab',
-        onPressed: () => showWaterBodyFormSheet(context),
+        onPressed: () => showWaterBodyFormSheet(
+          context,
+          onSave: (body) =>
+              context.read<WaterBodiesProvider>().addWaterBody(body),
+        ),
         icon: Icons.add,
       ),
       floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
@@ -202,6 +207,56 @@ class WaterBodiesScreen extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTypeFilter(BuildContext context, WaterBodiesProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Фільтр за типом',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.cardBorder, width: 1.2),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: provider.filterType ?? 'Усі типи',
+              isExpanded: true,
+              items: ['Усі типи', ...provider.types]
+                  .map((item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(item),
+                      ))
+                  .toList(),
+              onChanged: (val) {
+                provider.setFilterType(val == 'Усі типи' ? null : val);
+              },
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              icon: const Icon(
+                Icons.keyboard_arrow_down,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ),
+          ),
         ),
       ],
     );

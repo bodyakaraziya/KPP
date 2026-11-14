@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/widgets/water_body_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tackle_card.dart';
 import '../../../core/utils/app_snackbar.dart';
+import '../../../core/models/trip.dart';
+import '../providers/trips_provider.dart';
 
 class AddTripScreen extends StatefulWidget {
   const AddTripScreen({super.key});
@@ -19,6 +23,38 @@ class _AddTripScreenState extends State<AddTripScreen> {
   // Інтерактивний вибір снастей (за замовчуванням вибрано Спінінг Favorite X1 2.1м, як у Figma)
   final Set<String> _selectedTackle = {'Спінінг Favorite X1 2.1м'};
 
+  late final TextEditingController _dateCtrl;
+  late final TextEditingController _startTimeCtrl;
+  late final TextEditingController _endTimeCtrl;
+  late final TextEditingController _temperatureCtrl;
+  late final TextEditingController _windCtrl;
+  late final TextEditingController _pressureCtrl;
+  late final TextEditingController _notesCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _dateCtrl = TextEditingController(text: '24.05.2026');
+    _startTimeCtrl = TextEditingController(text: '06:00');
+    _endTimeCtrl = TextEditingController(text: '12:00');
+    _temperatureCtrl = TextEditingController(text: '+18°C');
+    _windCtrl = TextEditingController(text: '3 м/с Пн-Зх');
+    _pressureCtrl = TextEditingController(text: '752 мм');
+    _notesCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _dateCtrl.dispose();
+    _startTimeCtrl.dispose();
+    _endTimeCtrl.dispose();
+    _temperatureCtrl.dispose();
+    _windCtrl.dispose();
+    _pressureCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
   void _toggleTackle(String item) {
     setState(() {
       if (_selectedTackle.contains(item)) {
@@ -27,6 +63,34 @@ class _AddTripScreenState extends State<AddTripScreen> {
         _selectedTackle.add(item);
       }
     });
+  }
+
+  DateTime _parseDate(String text) {
+    try {
+      final parts = text.trim().split('.');
+      if (parts.length == 3) {
+        return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+      }
+    } catch (_) {}
+    return DateTime.now();
+  }
+
+  String _computeDuration(String start, String end) {
+    try {
+      final s = start.trim().split(':');
+      final e = end.trim().split(':');
+      if (s.length == 2 && e.length == 2) {
+        final startMins = int.parse(s[0]) * 60 + int.parse(s[1]);
+        final endMins = int.parse(e[0]) * 60 + int.parse(e[1]);
+        final diff = endMins - startMins;
+        if (diff > 0) {
+          final h = diff ~/ 60;
+          final m = diff % 60;
+          return '$h год $m хв';
+        }
+      }
+    } catch (_) {}
+    return '0 год 0 хв';
   }
 
   @override
@@ -166,12 +230,34 @@ class _AddTripScreenState extends State<AddTripScreen> {
                   height: 54,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.pop(context);
+                      final date = _parseDate(_dateCtrl.text);
+                      final start = _startTimeCtrl.text.trim();
+                      final end = _endTimeCtrl.text.trim();
+                      final trip = Trip(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        waterBodyName: _selectedWaterBody,
+                        location: _selectedWaterBody,
+                        date: date,
+                        startTime: start,
+                        endTime: end,
+                        duration: _computeDuration(start, end),
+                        temperature: _temperatureCtrl.text.trim(),
+                        weather: _selectedWeather,
+                        wind: _windCtrl.text.trim(),
+                        pressure: _pressureCtrl.text.trim(),
+                        imageUrl:
+                            'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80',
+                        tackle: _selectedTackle.toList(),
+                        catchItems: const [],
+                        notes: _notesCtrl.text.trim(),
+                      );
+                      context.read<TripsProvider>().addTrip(trip);
                       showAppSnackBar(
                         context,
                         message: 'Виїзд успішно збережено!',
                         isError: false,
                       );
+                      Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryTeal,
@@ -245,15 +331,15 @@ class _AddTripScreenState extends State<AddTripScreen> {
           const SizedBox(height: 16),
 
           _buildFieldLabel('Дата'),
-          _buildInputField(hintText: '24.05.2026', maxLength: 10),
+          _buildInputField(controller: _dateCtrl, hintText: '24.05.2026', maxLength: 10),
           const SizedBox(height: 16),
 
           _buildFieldLabel('Час початку'),
-          _buildInputField(hintText: '06:00', maxLength: 5),
+          _buildInputField(controller: _startTimeCtrl, hintText: '06:00', maxLength: 5),
           const SizedBox(height: 16),
 
           _buildFieldLabel('Час завершення'),
-          _buildInputField(hintText: '12:00', maxLength: 5),
+          _buildInputField(controller: _endTimeCtrl, hintText: '12:00', maxLength: 5),
           const SizedBox(height: 16),
 
           // Плашка Тривалість
@@ -306,7 +392,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
         children: [
           _buildFieldLabel('Температура'),
           _buildInputField(
-            initialValue: '+18°C',
+            controller: _temperatureCtrl,
             prefixIcon: Icons.wb_sunny_outlined,
           ),
           const SizedBox(height: 16),
@@ -322,11 +408,11 @@ class _AddTripScreenState extends State<AddTripScreen> {
           const SizedBox(height: 16),
 
           _buildFieldLabel('Вітер'),
-          _buildInputField(initialValue: '3 м/с Пн-Зх', prefixIcon: Icons.air),
+          _buildInputField(controller: _windCtrl, prefixIcon: Icons.air),
           const SizedBox(height: 16),
 
           _buildFieldLabel('Тиск'),
-          _buildInputField(initialValue: '752 мм'),
+          _buildInputField(controller: _pressureCtrl),
           const SizedBox(height: 22),
 
           // Заголовок Снасті + лічильник вибраних + кнопка "+ Нова снасть"
@@ -543,6 +629,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
       stepNumber: '4',
       title: 'Нотатки',
       child: TextFormField(
+        controller: _notesCtrl,
         maxLines: 4,
         inputFormatters: [LengthLimitingTextInputFormatter(500)],
         decoration: InputDecoration(
@@ -646,11 +733,13 @@ class _AddTripScreenState extends State<AddTripScreen> {
 
   Widget _buildInputField({
     String? initialValue,
+    TextEditingController? controller,
     String? hintText,
     IconData? prefixIcon,
     int maxLength = 100,
   }) {
     return TextFormField(
+      controller: controller,
       initialValue: initialValue,
       inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(
