@@ -3,18 +3,26 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_fab.dart';
+import '../../../core/widgets/app_filter_dropdown.dart';
 import '../../../core/widgets/water_body_card.dart';
 import '../providers/water_bodies_provider.dart';
 import '../widgets/water_body_type_filter.dart';
 
-class WaterBodiesScreen extends StatelessWidget {
+class WaterBodiesScreen extends StatefulWidget {
   const WaterBodiesScreen({super.key});
+
+  @override
+  State<WaterBodiesScreen> createState() => _WaterBodiesScreenState();
+}
+
+class _WaterBodiesScreenState extends State<WaterBodiesScreen> {
+  String? _filterType;
 
   @override
   Widget build(BuildContext context) {
     // Водойми беруться з WaterBodiesProvider (лаба №5, завдання 3.3–3.4).
     final provider = context.watch<WaterBodiesProvider>();
-    final waterBodies = provider.waterBodies;
+    final waterBodies = provider.filterWaterBodies(type: _filterType);
 
     final bool canPop = Navigator.canPop(context);
 
@@ -69,8 +77,14 @@ class WaterBodiesScreen extends StatelessWidget {
                 _buildHeader(context),
                 const SizedBox(height: 16),
 
-                // Фільтр за типом водойми
-                WaterBodyTypeFilter(provider: provider),
+                // Фільтр за типом водойми (стан керується локально на цьому екрані)
+                WaterBodyTypeFilter(
+                  type: _filterType,
+                  items: provider.types
+                      .map((type) => AppFilterItem(value: type, label: type))
+                      .toList(),
+                  onChanged: (val) => setState(() => _filterType = val),
+                ),
                 const SizedBox(height: 20),
 
                 // Лічильник записів

@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/models/tackle.dart';
 import '../../../core/theme/app_theme.dart';
-import '../providers/tackle_provider.dart';
 
 /// Фільтри категорій снастей з лічильниками (Wrap з chips).
+///
+/// Стан фільтра керується викликаючим екраном; цей віджет лише приймає
+/// поточне значення та викликає колбек при зміні.
 class TackleCategoryFilters extends StatelessWidget {
-  final TackleProvider provider;
+  final String? category;
+  final List<Tackle> allTackles;
+  final ValueChanged<String?> onChanged;
 
-  const TackleCategoryFilters({super.key, required this.provider});
+  const TackleCategoryFilters({
+    super.key,
+    required this.category,
+    required this.allTackles,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final categories = allTackles.map((t) => t.category).toSet().toList()..sort();
     final labels = [
       'Усі',
-      ...provider.categories.where((c) => c != 'Інше'),
-      if (provider.categories.contains('Інше')) 'Інше',
+      ...categories.where((c) => c != 'Інше'),
+      if (categories.contains('Інше')) 'Інше',
     ];
 
     return Wrap(
@@ -22,14 +33,14 @@ class TackleCategoryFilters extends StatelessWidget {
       runSpacing: 8,
       children: labels.map((label) {
         final bool isSelected = label == 'Усі'
-            ? provider.filterCategory == null
-            : provider.filterCategory == label;
+            ? category == null
+            : category == label;
         final int count = label == 'Усі'
-            ? provider.allTackles.length
-            : provider.allTackles.where((t) => t.category == label).length;
+            ? allTackles.length
+            : allTackles.where((t) => t.category == label).length;
 
         return InkWell(
-          onTap: () => provider.setFilterCategory(
+          onTap: () => onChanged(
             label == 'Усі' ? null : label,
           ),
           borderRadius: BorderRadius.circular(14),

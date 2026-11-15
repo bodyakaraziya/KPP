@@ -4,18 +4,18 @@ import '../../../core/models/tackle.dart';
 
 /// Управляє списком снастей: завантаження, створення, редагування, видалення
 /// та filtracija за категорією (лаба №5, завдання 3.3–3.4).
+///
+/// Стан фільтрації НЕ зберігається в провайдері. Кожен екрані керує своїми
+/// фільтрами локально та викликає [filterTackles] для отримання
+/// відфільтрованого списку.
 class TackleProvider extends ChangeNotifier {
   final List<Tackle> _tackles = [];
-  String? _filterCategory;
-  String _searchQuery = '';
 
-  /// Відфільтрований список для відображення (ураховує поточний фільтр та пошук).
-  List<Tackle> get tackles => _applyFilter();
+  /// Повний, невідфільтрований список снастей.
+  List<Tackle> get tackles => List.unmodifiable(_tackles);
   /// Повний, невідфільтрований список — використовується для лічильників,
   /// щоб фільтр лише ховав записи, а не змінював цифри.
   List<Tackle> get allTackles => List.unmodifiable(_tackles);
-  String? get filterCategory => _filterCategory;
-  String get searchQuery => _searchQuery;
 
   /// Унікальні категорії снастей для фільтра.
   List<String> get categories {
@@ -45,12 +45,6 @@ class TackleProvider extends ChangeNotifier {
 
   void deleteTackle(String id) {
     _tackles.removeWhere((t) => t.id == id);
-    // Якщо після видалення у поточній фільтровній категорії не залишилося записів — повертаємось на «Усі»
-    if (_filterCategory != null && _filterCategory!.isNotEmpty) {
-      if (!_tackles.any((t) => t.category == _filterCategory)) {
-        _filterCategory = null;
-      }
-    }
     notifyListeners();
   }
 
@@ -74,23 +68,14 @@ class TackleProvider extends ChangeNotifier {
     }
   }
 
-  void setFilterCategory(String? value) {
-    _filterCategory = value;
-    notifyListeners();
-  }
-
-  void setSearchQuery(String value) {
-    _searchQuery = value;
-    notifyListeners();
-  }
-
-  List<Tackle> _applyFilter() {
+  /// Фільтрує снасті за категорією та пошуковим запитом. Не зберігає стан фільтра.
+  List<Tackle> filterTackles({String? category, String? searchQuery}) {
     var result = _tackles;
-    if (_filterCategory != null && _filterCategory!.isNotEmpty) {
-      result = result.where((t) => t.category == _filterCategory).toList();
+    if (category != null && category.isNotEmpty) {
+      result = result.where((t) => t.category == category).toList();
     }
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
+    if ((searchQuery ?? '').isNotEmpty) {
+      final q = searchQuery!.toLowerCase();
       result = result.where((t) => t.name.toLowerCase().contains(q)).toList();
     }
     return result;
@@ -123,7 +108,7 @@ class TackleProvider extends ChangeNotifier {
         id: 'tackle-4',
         category: 'Приманка',
         name: 'Lucky John Tioga 3.5" Pearl',
-        notes: 'Їстівний силікон для джигу на судака та щуку.',
+        notes: 'Їстівний силікон для джигу на судака та щуки.',
         tripsCount: 1,
       ),
       Tackle(

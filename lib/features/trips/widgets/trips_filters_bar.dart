@@ -2,13 +2,36 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_filter_dropdown.dart';
-import '../providers/trips_provider.dart';
 
 /// Панель фільтрів виїздів (Водойма, Дата, Вид риби) зі сховаючим розгортанням.
+///
+/// Стан фільтрації керується викликаючим екраном; цей віджет лише приймає
+/// поточні значення та викликає колбеки при зміні.
 class TripsFiltersBar extends StatefulWidget {
-  final TripsProvider provider;
+  final String? waterBody;
+  final String? period;
+  final DateTimeRange? customDateRange;
+  final String? fishType;
+  final List<AppFilterItem<String>> waterBodyItems;
+  final List<AppFilterItem<String>> fishTypeItems;
+  final ValueChanged<String?> onWaterBodyChanged;
+  final ValueChanged<String?> onPeriodChanged;
+  final ValueChanged<DateTimeRange?> onDateRangeChanged;
+  final ValueChanged<String?> onFishTypeChanged;
 
-  const TripsFiltersBar({super.key, required this.provider});
+  const TripsFiltersBar({
+    super.key,
+    required this.waterBody,
+    required this.period,
+    required this.customDateRange,
+    required this.fishType,
+    required this.waterBodyItems,
+    required this.fishTypeItems,
+    required this.onWaterBodyChanged,
+    required this.onPeriodChanged,
+    required this.onDateRangeChanged,
+    required this.onFishTypeChanged,
+  });
 
   @override
   State<TripsFiltersBar> createState() => _TripsFiltersBarState();
@@ -19,8 +42,7 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = widget.provider;
-    final customRange = provider.customDateRange;
+    final customRange = widget.customDateRange;
     final periodItems = const <String>['За тиждень', 'За місяць', 'За рік'];
 
     String periodHint;
@@ -112,16 +134,14 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Фільтр за водоймою — пов'язаний з TripsProvider
+                  // Фільтр за водоймою
                   AppFilterDropdown<String>(
                     label: 'Водойма',
                     hint: 'Оберіть водойму',
                     allOptionLabel: 'Усі водойми',
-                    value: provider.filterWaterBody,
-                    items: provider.waterBodies
-                        .map((name) => AppFilterItem(value: name, label: name))
-                        .toList(),
-                    onChanged: provider.setFilterWaterBody,
+                    value: widget.waterBody,
+                    items: widget.waterBodyItems,
+                    onChanged: widget.onWaterBodyChanged,
                   ),
                   const SizedBox(height: 14),
                   // Період + календар (власна дата)
@@ -145,7 +165,7 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
                               label: null,
                               hint: periodHint,
                               allOptionLabel: 'За весь час',
-                              value: provider.filterPeriod,
+                              value: widget.period,
                               items: periodItems
                                   .map((name) => AppFilterItem(
                                         value: name,
@@ -154,11 +174,11 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
                                   .toList(),
                               onChanged: (val) {
                                 if (val == null) {
-                                  provider.setFilterPeriod(null);
-                                  provider.setCustomDateRange(null);
+                                  widget.onPeriodChanged(null);
+                                  widget.onDateRangeChanged(null);
                                 } else {
-                                  provider.setFilterPeriod(val);
-                                  provider.setCustomDateRange(null);
+                                  widget.onPeriodChanged(val);
+                                  widget.onDateRangeChanged(null);
                                 }
                               },
                             ),
@@ -174,11 +194,9 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
                     label: 'Вид риби',
                     hint: 'Оберіть вид риби',
                     allOptionLabel: 'Усі види',
-                    value: provider.filterFishType,
-                    items: provider.fishTypes
-                        .map((name) => AppFilterItem(value: name, label: name))
-                        .toList(),
-                    onChanged: provider.setFilterFishType,
+                    value: widget.fishType,
+                    items: widget.fishTypeItems,
+                    onChanged: widget.onFishTypeChanged,
                   ),
                   const SizedBox(height: 18),
                   SizedBox(
@@ -214,7 +232,7 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
 
   /// Кнопка календаря для вибору власного періоду (свої дати).
   Widget _buildCalendarButton() {
-    final range = widget.provider.customDateRange;
+    final range = widget.customDateRange;
     return InkWell(
       onTap: _pickCustomDateRange,
       borderRadius: BorderRadius.circular(14),
@@ -235,11 +253,11 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
     );
   }
 
-  /// Вибір власного проміжку дат через календар (як на екрані статистики).
+  /// Вибір власного проміжку дат через календар.
   Future<void> _pickCustomDateRange() async {
     final picked = await showDateRangePicker(
       context: context,
-      initialDateRange: widget.provider.customDateRange ??
+      initialDateRange: widget.customDateRange ??
           DateTimeRange(
             start: DateTime.now().subtract(const Duration(days: 7)),
             end: DateTime.now(),
@@ -263,8 +281,8 @@ class _TripsFiltersBarState extends State<TripsFiltersBar> {
       },
     );
     if (picked != null) {
-      widget.provider.setCustomDateRange(picked);
-      widget.provider.setFilterPeriod(null);
+      widget.onDateRangeChanged(picked);
+      widget.onPeriodChanged(null);
     }
   }
 

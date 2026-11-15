@@ -17,6 +17,8 @@ class TackleScreen extends StatefulWidget {
 
 class _TackleScreenState extends State<TackleScreen> {
   late final TextEditingController _searchCtrl;
+  String? _filterCategory;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -33,8 +35,12 @@ class _TackleScreenState extends State<TackleScreen> {
   @override
   Widget build(BuildContext context) {
     // Снасті беруться з TackleProvider (лаба №5, завдання 3.3–3.4).
+    // Фільтрація керується локально на цьому екрані.
     final provider = context.watch<TackleProvider>();
-    final tackles = provider.tackles;
+    final tackles = provider.filterTackles(
+      category: _filterCategory,
+      searchQuery: _searchQuery,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.backgroundBottom,
@@ -95,17 +101,20 @@ class _TackleScreenState extends State<TackleScreen> {
                 _buildHeader(context),
                 const SizedBox(height: 20),
 
-                // 2. Фільтри категорій з лічильниками
-                TackleCategoryFilters(provider: provider),
+                // 2. Фільтри категорій з лічильниками (стан керується локально)
+                TackleCategoryFilters(
+                  category: _filterCategory,
+                  allTackles: provider.allTackles,
+                  onChanged: (val) => setState(() => _filterCategory = val),
+                ),
                 const SizedBox(height: 18),
 
-                // 3. Пошук снасті за назвою
+                // 3. Пошук снасті за назвою (стан керується локально)
                 TripFieldLabel(label: 'Пошук снасті'),
                 TripInputField(
                   controller: _searchCtrl,
                   hintText: 'Назва або модель снасті',
-                  onChanged: (val) =>
-                      context.read<TackleProvider>().setSearchQuery(val),
+                  onChanged: (val) => setState(() => _searchQuery = val),
                 ),
                 const SizedBox(height: 20),
 

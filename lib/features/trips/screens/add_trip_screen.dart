@@ -58,10 +58,11 @@ class _AddTripScreenState extends State<AddTripScreen> {
       ..addAll(widget.trip?.catchItems ?? []);
 
     final tripDate = widget.trip?.date;
+    final today = DateTime.now();
     _dateCtrl = TextEditingController(
       text: tripDate != null
           ? '${tripDate.day.toString().padLeft(2, '0')}.${tripDate.month.toString().padLeft(2, '0')}.${tripDate.year}'
-          : '24.05.2026',
+          : '${today.day.toString().padLeft(2, '0')}.${today.month.toString().padLeft(2, '0')}.${today.year}',
     );
     _startTimeCtrl = TextEditingController(text: widget.trip?.startTime ?? '06:00');
     _endTimeCtrl = TextEditingController(text: widget.trip?.endTime ?? '12:00');

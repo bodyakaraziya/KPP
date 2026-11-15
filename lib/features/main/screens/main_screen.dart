@@ -70,8 +70,8 @@ class _MainScreenState extends State<MainScreen> {
 
     final List<Widget> screens = [
       HomeScreen(onNavigateTab: _switchTab),
-      const TripsScreen(),
-      const WaterBodiesScreen(),
+      TripsScreen(),
+      WaterBodiesScreen(),
       const ProfileScreen(),
     ];
 

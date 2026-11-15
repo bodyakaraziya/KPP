@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/catch_item.dart';
 import '../../../core/widgets/app_fab.dart';
+import '../../../core/widgets/app_filter_dropdown.dart';
 import '../../../core/widgets/trip_card.dart';
 import '../../tackle/providers/tackle_provider.dart';
 import '../../water_bodies/providers/water_bodies_provider.dart';
@@ -12,8 +13,18 @@ import '../widgets/trips_filters_bar.dart';
 import 'add_trip_screen.dart';
 import 'trip_detail_screen.dart';
 
-class TripsScreen extends StatelessWidget {
+class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
+
+  @override
+  State<TripsScreen> createState() => _TripsScreenState();
+}
+
+class _TripsScreenState extends State<TripsScreen> {
+  String? _filterWaterBody;
+  String? _filterPeriod;
+  String? _fishType;
+  DateTimeRange? _customDateRange;
 
   static const List<String> _months = [
     'Січ', 'Лют', 'Бер', 'Кві', 'Трав', 'Черв',
@@ -36,8 +47,14 @@ class TripsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Список виїздів беремо із провайдера стану (лаба №5, завдання 3.3).
+    // Фільтрація керується локально на цьому екрані, щоб не просочуватися на інші екрани.
     final tripsProvider = context.watch<TripsProvider>();
-    final trips = tripsProvider.trips;
+    final trips = tripsProvider.filterTrips(
+      waterBody: _filterWaterBody,
+      period: _filterPeriod,
+      fishType: _fishType,
+      dateRange: _customDateRange,
+    );
 
     final bool canPop = Navigator.canPop(context);
 
@@ -93,7 +110,26 @@ class TripsScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // 2. Панель фільтрів (Водойма, Дата, Вид риби)
-                TripsFiltersBar(provider: tripsProvider),
+                TripsFiltersBar(
+                  waterBody: _filterWaterBody,
+                  period: _filterPeriod,
+                  customDateRange: _customDateRange,
+                  fishType: _fishType,
+                  waterBodyItems: tripsProvider.waterBodies
+                      .map((name) => AppFilterItem(value: name, label: name))
+                      .toList(),
+                  fishTypeItems: tripsProvider.fishTypes
+                      .map((name) => AppFilterItem(value: name, label: name))
+                      .toList(),
+                  onWaterBodyChanged: (val) =>
+                      setState(() => _filterWaterBody = val),
+                  onPeriodChanged: (val) =>
+                      setState(() => _filterPeriod = val),
+                  onDateRangeChanged: (val) =>
+                      setState(() => _customDateRange = val),
+                  onFishTypeChanged: (val) =>
+                      setState(() => _fishType = val),
+                ),
                 const SizedBox(height: 20),
 
                 // 3. Лічильник записів (реактивно з провайдера)

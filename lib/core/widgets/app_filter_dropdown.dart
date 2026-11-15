@@ -140,8 +140,7 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
     final filtered = _filteredItems();
     final hasAll = widget.allOptionLabel != null;
     final total = filtered.length + (hasAll ? 1 : 0);
-    final maxVisible = 6;
-    final visible = total.clamp(1, maxVisible);
+    final maxVisible = 4;
     final itemHeight = 44.0;
 
     return Material(
@@ -199,12 +198,25 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
             )
           else
             SizedBox(
-              height: visible * itemHeight,
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: total,
-                itemBuilder: (context, index) {
+              height: (total < maxVisible ? total : maxVisible).toDouble() * itemHeight,
+              child: ScrollbarTheme(
+                data: ScrollbarThemeData(
+                  thickness: WidgetStateProperty.all(6.0),
+                  radius: const Radius.circular(4),
+                  thumbColor: WidgetStateProperty.all(AppColors.primaryTeal),
+                  trackColor: WidgetStateProperty.all(
+                    AppColors.cardBorder.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  radius: const Radius.circular(4),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: total,
+                    itemBuilder: (context, index) {
                   final isAll = hasAll && index == 0;
                   final item = isAll
                       ? null
@@ -257,6 +269,8 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
                 },
               ),
             ),
+          ),
+        ),
         ],
       ),
     );

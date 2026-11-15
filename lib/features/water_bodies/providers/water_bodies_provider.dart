@@ -4,14 +4,17 @@ import '../../../core/models/water_body.dart';
 
 /// Управляє списком водойм: завантаження, створення, редагування, видалення
 /// та filtracija за типом (лаба №5, завдання 3.3–3.4).
+///
+/// Стан фільтрації НЕ зберігається в провайдері. Кожен екрані керує своїми
+/// фільтрами локально та викликає [filterWaterBodies] для отримання
+/// відфільтрованого списку.
 class WaterBodiesProvider extends ChangeNotifier {
   final List<WaterBody> _waterBodies = [];
-  String? _filterType;
 
-  List<WaterBody> get waterBodies => _applyFilter();
+  /// Повний, невідфільтрований список водойм.
+  List<WaterBody> get waterBodies => List.unmodifiable(_waterBodies);
   List<WaterBody> get allWaterBodies => List.unmodifiable(_waterBodies);
   int get totalCount => _waterBodies.length;
-  String? get filterType => _filterType;
 
   /// Унікальні типи водойм для фільтра.
   List<String> get types {
@@ -41,11 +44,6 @@ class WaterBodiesProvider extends ChangeNotifier {
 
   void deleteWaterBody(String id) {
     _waterBodies.removeWhere((w) => w.id == id);
-    if (_filterType != null && _filterType!.isNotEmpty) {
-      if (!_waterBodies.any((w) => w.type == _filterType)) {
-        _filterType = null;
-      }
-    }
     notifyListeners();
   }
 
@@ -71,15 +69,11 @@ class WaterBodiesProvider extends ChangeNotifier {
     }
   }
 
-  void setFilterType(String? value) {
-    _filterType = value;
-    notifyListeners();
-  }
-
-  List<WaterBody> _applyFilter() {
+  /// Фільтрує водойми за типом. Не зберігає стан фільтра.
+  List<WaterBody> filterWaterBodies({String? type}) {
     var result = _waterBodies;
-    if (_filterType != null && _filterType!.isNotEmpty) {
-      result = result.where((w) => w.type == _filterType).toList();
+    if (type != null && type.isNotEmpty) {
+      result = result.where((w) => w.type == type).toList();
     }
     return result;
   }

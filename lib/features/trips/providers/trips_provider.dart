@@ -5,29 +5,21 @@ import '../../../core/models/trip.dart';
 
 /// Управляє списком виїздів: завантаження, створення, редагування, видалення,
 /// фільтрація та сортування (лаба №5, завдання 2 і 3.3–3.4).
+///
+/// Стан фільтрації НЕ зберігається в провайдері (싱лтон, спільний для всіх екранів).
+/// Кожен екрані керує своїми фільтрами локально та викликає [filterTrips] для отримання
+/// відфільтрованого списку.
 class TripsProvider extends ChangeNotifier {
   final List<Trip> _trips = [];
-  String? _filterWaterBody;
-  String? _filterPeriod; // 'За весь час' | 'За тиждень' | 'За місяць' | 'За рік'
-  String? _filterFishType;
-  DateTimeRange? _customDateRange; // кастомний період через календар
-  String? _sortBy; // 'date' | 'location' | 'fish' | null
-  bool _ascending = true;
 
-  List<Trip> get trips => _applyFilterAndSort();
-  String? get filterWaterBody => _filterWaterBody;
-  String? get filterPeriod => _filterPeriod;
-  String? get filterFishType => _filterFishType;
-  DateTimeRange? get customDateRange => _customDateRange;
+  /// Повний, невідфільтрований список виїздів.
+  List<Trip> get trips => List.unmodifiable(_trips);
 
   /// Унікальні види риби для фільтра.
   List<String> get fishTypes {
     final types = _trips.expand((t) => t.catchItems.map((c) => c.fishName)).toSet().toList()..sort();
     return types;
   }
-
-  String? get sortBy => _sortBy;
-  bool get ascending => _ascending;
 
   /// Унікальні назви водойм для випадаючого фільтра.
   List<String> get waterBodies {
@@ -61,59 +53,27 @@ class TripsProvider extends ChangeNotifier {
   /// Видалити виїзд за id.
   void deleteTrip(String id) {
     _trips.removeWhere((t) => t.id == id);
-    if (_filterWaterBody != null && _filterWaterBody!.isNotEmpty) {
-      if (!_trips.any((t) => t.waterBodyName == _filterWaterBody)) {
-        _filterWaterBody = null;
-      }
-    }
-    if (_filterFishType != null && _filterFishType!.isNotEmpty && _filterFishType != 'Усі види') {
-      if (!_trips.any((t) => t.catchItems.any((c) => c.fishName == _filterFishType))) {
-        _filterFishType = null;
-      }
-    }
-    if (_customDateRange != null) {
-      if (!_trips.any((t) => !t.date.isBefore(_customDateRange!.start) && !t.date.isAfter(_customDateRange!.end))) {
-        _customDateRange = null;
-      }
-    }
     notifyListeners();
   }
 
-  void setFilterWaterBody(String? value) {
-    _filterWaterBody = value;
-    notifyListeners();
-  }
-
-  void setFilterPeriod(String? value) {
-    _filterPeriod = value;
-    notifyListeners();
-  }
-
-  void setFilterFishType(String? value) {
-    _filterFishType = value;
-    notifyListeners();
-  }
-
-  void setCustomDateRange(DateTimeRange? value) {
-    _customDateRange = value;
-    notifyListeners();
-  }
-
-  void setSortBy(String? value, {bool ascending = true}) {
-    _sortBy = value;
-    _ascending = ascending;
-    notifyListeners();
-  }
-
-  List<Trip> _applyFilterAndSort() {
+  /// Фільтрує та сортує виїзди за вказаними параметрами.
+  /// Не зберігає стан фільтра — кожен виклик повертає новий список.
+  List<Trip> filterTrips({
+    String? waterBody,
+    String? period, // 'За тиждень' | 'За місяць' | 'За рік' | null
+    String? fishType,
+    DateTimeRange? dateRange,
+    String? sortBy, // 'date' | 'location' | 'fish' | null
+    bool ascending = true,
+  }) {
     var result = _trips.where((t) {
-      if (_filterWaterBody == null || _filterWaterBody!.isEmpty) return true;
-      return t.waterBodyName == _filterWaterBody;
+      if (waterBody == null || waterBody.isEmpty) return true;
+      return t.waterBodyName == waterBody;
     }).where((t) {
-      if (_filterPeriod == null || _filterPeriod!.isEmpty || _filterPeriod == 'За весь час') return true;
+      if (period == null || period.isEmpty || period == 'За весь час') return true;
       final now = DateTime.now();
       DateTime cutoff;
-      switch (_filterPeriod) {
+      switch (period) {
         case 'За тиждень':
           cutoff = now.subtract(const Duration(days: 7));
           break;
@@ -128,18 +88,17 @@ class TripsProvider extends ChangeNotifier {
       }
       return t.date.isAfter(cutoff);
     }).where((t) {
-      if (_filterFishType == null || _filterFishType!.isEmpty || _filterFishType == 'Усі види') return true;
-      return t.catchItems.any((c) => c.fishName == _filterFishType);
+      if (fishType == null || fishType.isEmpty || fishType == 'Усі види') return true;
+      return t.catchItems.any((c) => c.fishName == fishType);
     }).where((t) {
-      if (_customDateRange == null) return true;
-      return !t.date.isBefore(_customDateRange!.start) &&
-          !t.date.isAfter(_customDateRange!.end);
+      if (dateRange == null) return true;
+      return !t.date.isBefore(dateRange.start) && !t.date.isAfter(dateRange.end);
     }).toList();
 
-    if (_sortBy != null) {
+    if (sortBy != null) {
       result.sort((a, b) {
         int cmp;
-        switch (_sortBy) {
+        switch (sortBy) {
           case 'date':
             cmp = a.date.compareTo(b.date);
             break;
@@ -152,7 +111,7 @@ class TripsProvider extends ChangeNotifier {
           default:
             cmp = 0;
         }
-        return _ascending ? cmp : -cmp;
+        return ascending ? cmp : -cmp;
       });
     }
     return result;
