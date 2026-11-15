@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/water_body.dart';
 import '../theme/app_theme.dart';
+import 'app_filter_dropdown.dart';
 import '../utils/app_snackbar.dart';
 import '../../features/trips/widgets/fish_photo_dialog.dart';
 
@@ -384,36 +385,17 @@ class _WaterBodyFormSheetContentState
             ),
             const SizedBox(height: 14),
 
-            // Поле: Тип (Dropdown)
+            // Поле: Тип (випадаючий список в стилі решти форми)
             _buildLabel('Тип'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.cardBorder, width: 1.2),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedType,
-                  isExpanded: true,
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: AppColors.textSecondary,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                  items: _waterTypes
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedType = val);
-                  },
-                ),
-              ),
+            AppFilterDropdown<String>(
+              hint: 'Оберіть тип водойми',
+              items: _waterTypes
+                  .map((t) => AppFilterItem(value: t, label: t))
+                  .toList(),
+              value: _selectedType,
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedType = val);
+              },
             ),
             const SizedBox(height: 14),
 

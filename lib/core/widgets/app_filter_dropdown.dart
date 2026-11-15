@@ -73,6 +73,9 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
     return null;
   }
 
+  /// Чи відкрито зараз випадаючий список.
+  bool get _isOpen => _overlayEntry != null;
+
   List<AppFilterItem<T>> _filteredItems() {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return widget.items;
@@ -144,6 +147,7 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
     return Material(
       color: AppColors.cardBackground,
       borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       elevation: 8,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -209,25 +213,44 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
                       ? widget.value == null
                       : item != null && item.value == widget.value;
                   return InkWell(
+                    borderRadius: BorderRadius.circular(selected ? 12 : 0),
                     onTap: () {
                       _close();
                       widget.onChanged(isAll ? null : item!.value);
                     },
                     child: Container(
                       height: itemHeight,
-                      color: selected ? AppColors.lightTealBg : Colors.white,
+                      decoration: BoxDecoration(
+                        color: selected ? AppColors.lightTealBg : Colors.white,
+                        borderRadius: BorderRadius.circular(selected ? 12 : 0),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        isAll ? widget.allOptionLabel! : item!.label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w600,
-                          color: selected
-                              ? AppColors.primaryTeal
-                              : AppColors.textPrimary,
-                        ),
+                      child: Row(
+                        children: [
+                          if (selected) ...[
+                            const Icon(
+                              Icons.check,
+                              size: 16,
+                              color: AppColors.primaryTeal,
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: Text(
+                              isAll ? widget.allOptionLabel! : item!.label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    selected ? FontWeight.w700 : FontWeight.w600,
+                                color: selected
+                                    ? AppColors.primaryTeal
+                                    : AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -272,7 +295,19 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.cardBorder, width: 1.2),
+                border: Border.all(
+                  color: _isOpen ? AppColors.primaryTeal : AppColors.cardBorder,
+                  width: 1.2,
+                ),
+                boxShadow: _isOpen
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primaryTeal.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -294,6 +329,15 @@ class _AppFilterDropdownState<T> extends State<AppFilterDropdown<T>> {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      color:
+                          _isOpen || _selectedItem() != null || widget.value != null
+                              ? AppColors.primaryTeal
+                              : AppColors.textSecondary,
+                      size: 20,
                     ),
                   ],
                 ),
