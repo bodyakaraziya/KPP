@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/water_body.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_snackbar.dart';
+import '../../features/trips/widgets/fish_photo_dialog.dart';
 
 class WaterBodyCard extends StatelessWidget {
   final String imageUrl;
@@ -196,6 +197,7 @@ class _WaterBodyFormSheetContentState
   late final TextEditingController _nameCtrl;
   late final TextEditingController _locationCtrl;
   late final TextEditingController _notesCtrl;
+  String? _customImageUrl; // власне обране фото, перекриває initialImageUrl
 
 
   final List<String> _waterTypes = const [
@@ -226,6 +228,16 @@ class _WaterBodyFormSheetContentState
     super.dispose();
   }
 
+  Future<void> _pickPhoto() async {
+    final url = await showDialog<String?>(
+      context: context,
+      builder: (_) => const FishPhotoDialog(),
+    );
+    if (mounted && url != null) {
+      setState(() => _customImageUrl = url);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -233,6 +245,7 @@ class _WaterBodyFormSheetContentState
         ? media.viewInsets.bottom
         : media.viewPadding.bottom;
     final String photoUrl =
+        _customImageUrl ??
         widget.initialImageUrl ??
         (widget.isEditing
             ? 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80'
@@ -301,67 +314,64 @@ class _WaterBodyFormSheetContentState
             ),
             const SizedBox(height: 18),
 
-            // Банер фотографії з кнопкою "Змінити фото"
+            // Банер фотографії з кнопкою зміни фото
             SizedBox(
-              height: 96,
+              height: 110,
               width: double.infinity,
-              child: Stack(
-                children: [
-                  // Image with errorBuilder
-                  Container(
-                    width: double.infinity,
-                    height: 96,
-                    decoration: BoxDecoration(
+              child: GestureDetector(
+                onTap: _pickPhoto,
+                child: Stack(
+                  children: [
+                    // Фото водойми
+                    ClipRRect(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: AppColors.cardBorder,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Image.network(
-                      photoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      child: Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
                         width: double.infinity,
-                        height: 96,
-                        color: Colors.grey[300],
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.image,
-                          size: 28,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Overlay container
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(17),
-                      color: Colors.black.withValues(alpha: 0.35),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.camera_alt_outlined,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Змінити фото',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                        height: 110,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: double.infinity,
+                          height: 110,
+                          color: Colors.grey[300],
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.image,
+                            size: 32,
+                            color: Colors.grey[600],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    // Накладка з кнопкою зміни фото
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        color: Colors.black.withValues(alpha: 0.45),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.camera_alt_outlined,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Змінити фото',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 18),
@@ -369,7 +379,7 @@ class _WaterBodyFormSheetContentState
             // Поле: Назва
             _buildLabel('Назва'),
             _buildTextField(
-              initialValue: widget.initialName,
+              controller: _nameCtrl,
               hintText: 'Наприклад, Озеро Синє',
             ),
             const SizedBox(height: 14),
@@ -410,7 +420,7 @@ class _WaterBodyFormSheetContentState
             // Поле: Локація
             _buildLabel('Локація'),
             _buildTextField(
-              initialValue: widget.initialLocation,
+              controller: _locationCtrl,
               hintText: 'Область або координати',
               prefixIcon: Icons.map_outlined,
             ),
@@ -419,7 +429,7 @@ class _WaterBodyFormSheetContentState
             // Поле: Нотатки
             _buildLabel('Нотатки'),
             _buildTextField(
-              initialValue: widget.initialNotes,
+              controller: _notesCtrl,
               hintText: 'Особливості місця...',
               maxLines: 2,
               maxLength: 500,
@@ -521,13 +531,15 @@ class _WaterBodyFormSheetContentState
 
   Widget _buildTextField({
     String? initialValue,
+    TextEditingController? controller,
     required String hintText,
     IconData? prefixIcon,
     int maxLines = 1,
     int maxLength = 100,
   }) {
     return TextFormField(
-      initialValue: initialValue,
+      controller: controller,
+      initialValue: controller == null ? initialValue : null,
       maxLines: maxLines,
       inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(

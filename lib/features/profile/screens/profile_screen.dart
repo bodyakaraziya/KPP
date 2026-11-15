@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -13,11 +12,14 @@ import '../../statistics/screens/statistics_screen.dart';
 import '../../tackle/screens/tackle_screen.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/app_settings_card.dart';
+import '../widgets/email_confirmation_banner.dart';
 import '../widgets/forgot_password_bottom_sheet.dart';
 import '../widgets/password_card.dart';
+import '../widgets/password_confirmation_dialog.dart';
 import '../widgets/personal_data_card.dart';
 import '../widgets/photo_picker_dialog.dart';
 import '../widgets/profile_header.dart';
+import '../widgets/profile_menu.dart';
 import '../widgets/user_summary_card.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -123,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<String?> _askForPassword() {
     return showDialog<String>(
       context: context,
-      builder: (_) => const _PasswordConfirmationDialog(),
+      builder: (_) => const PasswordConfirmationDialog(),
     );
   }
 
@@ -214,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         return;
       }
       if (digits.length == 9) {
-        phoneToSave = '+380 $phoneText';
+        phoneToSave = '+380 $digits';
       }
     }
 
@@ -459,36 +461,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                           if (_pendingEmail != null) ...[
                             const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.lightTealBg,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: AppColors.cardBorder),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Очікується підтвердження пошти',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Перейдіть за посиланням у листі, надісланому на $_pendingEmail.',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            EmailConfirmationBanner(pendingEmail: _pendingEmail!),
                           ],
                           const SizedBox(height: 14),
                           AppSettingsCard(
@@ -564,71 +537,22 @@ class _ProfileScreenState extends State<ProfileScreen>
                   child: const SizedBox.expand(),
                 ),
               ),
-            if (_isMenuOpen)
-              Positioned(
-                top: 68.0,
-                right: 20.0,
-                width: 220,
-                child: Material(
-                  elevation: 12,
-                  shadowColor: Colors.black.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.cardBorder,
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
-                          child: Text(
-                            'Додатково',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const Divider(color: AppColors.cardBorder, height: 1),
-                        _buildMenuItem(
-                          icon: Icons.phishing_rounded,
-                          label: 'Снасті',
-                          onTap: () {
-                            setState(() => _isMenuOpen = false);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const TackleScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _buildMenuItem(
-                          icon: Icons.bar_chart_rounded,
-                          label: 'Статистика',
-                          onTap: () {
-                            setState(() => _isMenuOpen = false);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const StatisticsScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            ProfileMenu(
+              isMenuOpen: _isMenuOpen,
+              onClose: () => setState(() => _isMenuOpen = false),
+              onTackleTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TackleScreen()),
+                );
+              },
+              onStatisticsTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -685,109 +609,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           );
         }
       },
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: AppColors.textPrimary),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PasswordConfirmationDialog extends StatefulWidget {
-  const _PasswordConfirmationDialog();
-
-  @override
-  State<_PasswordConfirmationDialog> createState() =>
-      _PasswordConfirmationDialogState();
-}
-
-class _PasswordConfirmationDialogState
-    extends State<_PasswordConfirmationDialog> {
-  late final TextEditingController _passwordCtrl;
-  bool _obscurePassword = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _passwordCtrl = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _passwordCtrl.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final password = _passwordCtrl.text.trim();
-    if (password.isNotEmpty) {
-      Navigator.pop(context, password);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Підтвердіть зміну Email'),
-      content: TextField(
-        controller: _passwordCtrl,
-        autofocus: true,
-        obscureText: _obscurePassword,
-        inputFormatters: [LengthLimitingTextInputFormatter(128)],
-        textInputAction: TextInputAction.done,
-        decoration: InputDecoration(
-          labelText: 'Пароль від акаунта',
-          hintText: 'Введіть поточний пароль',
-          suffixIcon: Transform.translate(
-            offset: const Offset(0, 7),
-            child: IconButton(
-              tooltip: _obscurePassword
-                  ? 'Показати пароль'
-                  : 'Приховати пароль',
-              iconSize: 20,
-              icon: Icon(
-                _obscurePassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-              ),
-              onPressed: () {
-                setState(() => _obscurePassword = !_obscurePassword);
-              },
-            ),
-          ),
-        ),
-        onSubmitted: (_) => _submit(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Скасувати'),
-        ),
-        FilledButton(onPressed: _submit, child: const Text('Підтвердити')),
-      ],
     );
   }
 }

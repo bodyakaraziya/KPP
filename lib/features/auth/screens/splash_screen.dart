@@ -1,7 +1,7 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'login_screen.dart';
@@ -19,10 +19,19 @@ class _SplashScreenState extends State<SplashScreen> {
   Timer? _progressTimer;
   double _progress = 0.0;
 
+  User? _resolvedUser;
+  bool _initialized = false;
+  DateTime? _startedAt;
+
+  /// Мінімальний час показів сплеша, щоб бренд не промігав на екрані.
+  static const Duration _minDisplayDuration = Duration(milliseconds: 1200);
+
   @override
   void initState() {
     super.initState();
+    _startedAt = DateTime.now();
     _startProgressAnimation();
+    _initializeAuth();
   }
 
   void _startProgressAnimation() {
@@ -37,27 +46,61 @@ class _SplashScreenState extends State<SplashScreen> {
         _progress += 0.01;
         if (_progress >= 1.0) {
           _progressTimer?.cancel();
-          _navigateAfterSplash();
+          _tryNavigate();
         }
       });
     });
   }
 
-  void _navigateAfterSplash() {
-    if (!mounted) return;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+  /// Перевіряє стан автентифікації одноразово при запуску.
+  ///
+  /// Firebase Auth відновлює збережену сесію з локального сховища асинхронно
+  /// після холодного запуску, тому одноразова перевірка `currentUser` може
+  /// дати невірний результат. Дочекуємося дефінітивного стану перед
+  /// навігацією, аби користувача не кидало на екран входу після перезапуску.
+  Future<void> _initializeAuth() async {
+    final repo = AuthRepository();
+    var user = repo.currentUser;
 
-      final repo = AuthRepository();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => repo.currentUser != null
-              ? const MainScreen()
-              : const LoginScreen(),
-        ),
-      );
-    });
+    // Сесія може ще відновлюватися — чекаємо першого випромінювання стану.
+    if (user == null) {
+      try {
+        user = await repo.authStateChanges.first.timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => repo.currentUser,
+        );
+      } catch (_) {
+        user = repo.currentUser;
+      }
+    }
+
+    if (!mounted) return;
+    _resolvedUser = user;
+    setState(() => _initialized = true);
+    _tryNavigate();
+  }
+
+  /// Навігує на головний екран або екран входу, як тільки сплеш готовий.
+  void _tryNavigate() {
+    if (!_initialized) return;
+
+    final elapsed = DateTime.now().difference(_startedAt!);
+    if (elapsed < _minDisplayDuration) return;
+
+    _progressTimer?.cancel();
+    _navigate();
+  }
+
+  void _navigate() {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _resolvedUser != null
+            ? const MainScreen()
+            : const LoginScreen(),
+      ),
+    );
   }
 
   @override
@@ -76,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen> {
         systemNavigationBarContrastEnforced: false,
       ),
       child: GestureDetector(
-        onTap: _navigateAfterSplash,
+        onTap: () => _tryNavigate(),
         child: Scaffold(
           body: Container(
             width: double.infinity,

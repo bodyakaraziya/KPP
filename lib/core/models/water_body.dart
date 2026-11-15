@@ -37,4 +37,24 @@ class WaterBody {
         imageUrl: json['imageUrl'] as String,
         tripsCount: json['tripsCount'] as int? ?? 0,
       );
+
+  WaterBody copyWith({
+    String? id,
+    String? name,
+    String? type,
+    String? location,
+    String? notes,
+    String? imageUrl,
+    int? tripsCount,
+  }) {
+    return WaterBody(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      location: location ?? this.location,
+      notes: notes ?? this.notes,
+      imageUrl: imageUrl ?? this.imageUrl,
+      tripsCount: tripsCount ?? this.tripsCount,
+    );
+  }
 }

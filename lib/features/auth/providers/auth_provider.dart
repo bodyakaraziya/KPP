@@ -20,6 +20,11 @@ class AuthProvider extends ChangeNotifier {
   StreamSubscription<Map<String, dynamic>?>? _profileSubscription;
 
   AuthProvider(this._repository) {
+    final user = _repository.currentUser;
+    _user = user;
+    if (user != null) {
+      _loadProfile(user.uid);
+    }
     _listenAuth();
   }
 

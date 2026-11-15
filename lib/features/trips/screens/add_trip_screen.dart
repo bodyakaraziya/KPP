@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/widgets/water_body_card.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/tackle_card.dart';
-import '../../../core/utils/app_snackbar.dart';
 import '../../../core/models/trip.dart';
+import '../../../core/models/water_body.dart';
+import '../../../core/models/catch_item.dart';
+import '../../../core/utils/app_snackbar.dart';
+import '../../../core/widgets/tackle_card.dart';
+import '../../../core/widgets/water_body_card.dart';
 import '../providers/trips_provider.dart';
+import '../../water_bodies/providers/water_bodies_provider.dart';
+import '../../tackle/providers/tackle_provider.dart';
+import '../widgets/basic_info_step.dart';
+import '../widgets/catch_step.dart';
+import '../widgets/notes_step.dart';
+import '../widgets/tackle_step.dart';
+import '../widgets/weather_step.dart';
 
 class AddTripScreen extends StatefulWidget {
-  const AddTripScreen({super.key});
+  final Trip? trip;
+
+  const AddTripScreen({super.key, this.trip});
 
   @override
   State<AddTripScreen> createState() => _AddTripScreenState();
@@ -20,8 +30,12 @@ class _AddTripScreenState extends State<AddTripScreen> {
   String _selectedWaterBody = 'Дніпровська затока';
   String _selectedWeather = 'Сонячно';
 
-  // Інтерактивний вибір снастей (за замовчуванням вибрано Спінінг Favorite X1 2.1м, як у Figma)
-  final Set<String> _selectedTackle = {'Спінінг Favorite X1 2.1м'};
+  // Вибрані снасті — порожньо за замовчуванням. При редагуванні виїзду
+  // заповнюється з даних виїзду (initState), нічого не хардкодиться.
+  final Set<String> _selectedTackle = {};
+
+  final List<CatchItem> _catchItems = [];
+  String _durationText = '6 год 0 хв';
 
   late final TextEditingController _dateCtrl;
   late final TextEditingController _startTimeCtrl;
@@ -34,17 +48,50 @@ class _AddTripScreenState extends State<AddTripScreen> {
   @override
   void initState() {
     super.initState();
-    _dateCtrl = TextEditingController(text: '24.05.2026');
-    _startTimeCtrl = TextEditingController(text: '06:00');
-    _endTimeCtrl = TextEditingController(text: '12:00');
-    _temperatureCtrl = TextEditingController(text: '+18°C');
-    _windCtrl = TextEditingController(text: '3 м/с Пн-Зх');
-    _pressureCtrl = TextEditingController(text: '752 мм');
-    _notesCtrl = TextEditingController();
+    _selectedWaterBody = widget.trip?.waterBodyName ?? 'Дніпровська затока';
+    _selectedWeather = widget.trip?.weather ?? 'Сонячно';
+    _selectedTackle
+      ..clear()
+      ..addAll(widget.trip?.tackle ?? const <String>[]);
+    _catchItems
+      ..clear()
+      ..addAll(widget.trip?.catchItems ?? []);
+
+    final tripDate = widget.trip?.date;
+    _dateCtrl = TextEditingController(
+      text: tripDate != null
+          ? '${tripDate.day.toString().padLeft(2, '0')}.${tripDate.month.toString().padLeft(2, '0')}.${tripDate.year}'
+          : '24.05.2026',
+    );
+    _startTimeCtrl = TextEditingController(text: widget.trip?.startTime ?? '06:00');
+    _endTimeCtrl = TextEditingController(text: widget.trip?.endTime ?? '12:00');
+    _temperatureCtrl = TextEditingController(text: widget.trip?.temperature ?? '+18°C');
+    _windCtrl = TextEditingController(text: widget.trip?.wind ?? '3 м/с Пн-Зх');
+    _pressureCtrl = TextEditingController(text: widget.trip?.pressure ?? '752 мм');
+    _notesCtrl = TextEditingController(text: widget.trip?.notes ?? '');
+
+    _startTimeCtrl.addListener(_recomputeDuration);
+    _endTimeCtrl.addListener(_recomputeDuration);
+    _durationText = widget.trip?.duration ?? _computeDuration(_startTimeCtrl.text, _endTimeCtrl.text);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final names = context
+        .read<WaterBodiesProvider>()
+        .waterBodies
+        .map((wb) => wb.name)
+        .toList();
+    if (_selectedWaterBody.isNotEmpty && !names.contains(_selectedWaterBody)) {
+      _selectedWaterBody = names.isNotEmpty ? names.first : '';
+    }
   }
 
   @override
   void dispose() {
+    _startTimeCtrl.removeListener(_recomputeDuration);
+    _endTimeCtrl.removeListener(_recomputeDuration);
     _dateCtrl.dispose();
     _startTimeCtrl.dispose();
     _endTimeCtrl.dispose();
@@ -53,6 +100,12 @@ class _AddTripScreenState extends State<AddTripScreen> {
     _pressureCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
+  }
+
+  void _recomputeDuration() {
+    setState(() {
+      _durationText = _computeDuration(_startTimeCtrl.text, _endTimeCtrl.text);
+    });
   }
 
   void _toggleTackle(String item) {
@@ -93,8 +146,143 @@ class _AddTripScreenState extends State<AddTripScreen> {
     return '0 год 0 хв';
   }
 
+  void _saveTrip() {
+    final date = _parseDate(_dateCtrl.text);
+    final start = _startTimeCtrl.text.trim();
+    final end = _endTimeCtrl.text.trim();
+
+    // brakte: локація та фото беруться з обраної водойми,
+    // щоб не зберігати захардкожені дані.
+    final waterBody = context.read<WaterBodiesProvider>().allWaterBodies.firstWhere(
+      (wb) => wb.name == _selectedWaterBody,
+      orElse: () => WaterBody(
+        id: '',
+        name: _selectedWaterBody,
+        type: '',
+        location: '',
+        notes: '',
+        imageUrl:
+            'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80',
+      ),
+    );
+    final location =
+        waterBody.location.isNotEmpty
+            ? waterBody.location
+            : _selectedWaterBody;
+
+    final trip = Trip(
+      id: widget.trip?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      waterBodyName: _selectedWaterBody,
+      location: location,
+      date: date,
+      startTime: start,
+      endTime: end,
+      duration: _durationText,
+      temperature: _temperatureCtrl.text.trim(),
+      weather: _selectedWeather,
+      wind: _windCtrl.text.trim(),
+      pressure: _pressureCtrl.text.trim(),
+      imageUrl: waterBody.imageUrl,
+      tackle: _selectedTackle.toList(),
+      catchItems: List.of(_catchItems),
+      notes: _notesCtrl.text.trim(),
+    );
+
+    if (widget.trip != null) {
+      // Редагування: якщо водойма змінилась — зменшуємо лічильник старої та збільшуємо нову.
+      final oldWaterBody = widget.trip?.waterBodyName;
+      if (oldWaterBody != null && oldWaterBody != _selectedWaterBody) {
+        context.read<WaterBodiesProvider>().decrementTripsCount(oldWaterBody);
+      }
+      context.read<WaterBodiesProvider>().incrementTripsCount(_selectedWaterBody);
+
+      // Синхронізуємо лічильники виїздів для снастей: зменшуємо ті, що випали з виїзду,
+      // та збільшуємо нові.
+      final oldTackle = widget.trip?.tackle ?? const <String>[];
+      final newTackle = trip.tackle;
+      for (final name in oldTackle) {
+        if (!newTackle.contains(name)) {
+          context.read<TackleProvider>().decrementTripsCount(name);
+        }
+      }
+      for (final name in newTackle) {
+        if (!oldTackle.contains(name)) {
+          context.read<TackleProvider>().incrementTripsCount(name);
+        }
+      }
+
+      context.read<TripsProvider>().updateTrip(trip.id, trip);
+      showAppSnackBar(
+        context,
+        message: 'Зміни збережено!',
+        isError: false,
+      );
+    } else {
+      context.read<TripsProvider>().addTrip(trip);
+      context.read<WaterBodiesProvider>().incrementTripsCount(_selectedWaterBody);
+      // Кожна обрана снасть отримує +1 до лічильника виїздів.
+      for (final name in trip.tackle) {
+        context.read<TackleProvider>().incrementTripsCount(name);
+      }
+      showAppSnackBar(
+        context,
+        message: 'Виїзд успішно збережено!',
+        isError: false,
+      );
+    }
+    Navigator.pop(context);
+  }
+
+  /// Додати нову водойму через форму та обрти нею виїзд.
+  Future<void> _onAddWaterBody() async {
+    await showWaterBodyFormSheet(
+      context,
+      onSave: (body) {
+        context.read<WaterBodiesProvider>().addWaterBody(body);
+        setState(() => _selectedWaterBody = body.name);
+      },
+    );
+  }
+
+  /// Додати нову снасть через форму та відмітити її вибраною.
+  Future<void> _onAddTackle() async {
+    await showTackleFormSheet(
+      context,
+      onSave: (item) {
+        context.read<TackleProvider>().addTackle(item);
+        setState(() => _selectedTackle.add(item.name));
+      },
+    );
+  }
+
+  /// Додати рибу до улову: одразу форма додання позиції (модальний bottom sheet),
+  /// фото вибирається всередині форми за бажанням.
+  Future<void> _addFish() async {
+    final item = await showModalBottomSheet<CatchItem?>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => FishItemFormDialog(
+        startTime: _startTimeCtrl.text.trim(),
+        endTime: _endTimeCtrl.text.trim(),
+      ),
+    );
+    if (mounted && item != null) {
+      setState(() => _catchItems.add(item));
+    }
+  }
+
+  void _removeFish(int index) {
+    setState(() => _catchItems.removeAt(index));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final waterBodies = context.watch<WaterBodiesProvider>();
+    final tackles = context.watch<TackleProvider>();
+    final waterBodyNames = waterBodies.waterBodies.map((wb) => wb.name).toList();
+
     return Scaffold(
       backgroundColor: AppColors.backgroundBottom,
       body: Container(
@@ -144,17 +332,18 @@ class _AddTripScreenState extends State<AddTripScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Заголовок + Статус синхронізації
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Новий виїзд',
+                                widget.trip != null
+                                    ? 'Редагувати виїзд'
+                                    : 'Новий виїзд',
                                 style: TextStyle(
                                   fontSize: 30,
                                   fontWeight: FontWeight.w800,
@@ -164,36 +353,11 @@ class _AddTripScreenState extends State<AddTripScreen> {
                               ),
                               SizedBox(height: 6),
                               Text(
-                                'Збережіть деталі та спогади про\nриболовлю',
+                                'Збережіть деталі та спогади про риболовлю',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: AppColors.textSecondary,
                                   height: 1.35,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.syncDotGreen,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Синхронізовано',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -204,19 +368,51 @@ class _AddTripScreenState extends State<AddTripScreen> {
                     const SizedBox(height: 20),
 
                     // Картка 1: Основна інформація
-                    _buildStep1BasicInfo(),
+                    BasicInfoStep(
+                      selectedWaterBody: _selectedWaterBody,
+                      waterBodyNames: waterBodyNames,
+                      onWaterBodyChanged: (val) =>
+                          setState(() => _selectedWaterBody = val),
+                      dateCtrl: _dateCtrl,
+                      startTimeCtrl: _startTimeCtrl,
+                      endTimeCtrl: _endTimeCtrl,
+                      durationText: _durationText,
+                      onAddWaterBody: _onAddWaterBody,
+                    ),
                     const SizedBox(height: 16),
 
-                    // Картка 2: Погода та спорядження
-                    _buildStep2WeatherAndTackle(),
+                    // Картка 2: Погода
+                    WeatherStep(
+                      selectedWeather: _selectedWeather,
+                      onWeatherChanged: (val) =>
+                          setState(() => _selectedWeather = val),
+                      temperatureCtrl: _temperatureCtrl,
+                      windCtrl: _windCtrl,
+                      pressureCtrl: _pressureCtrl,
+                    ),
                     const SizedBox(height: 16),
 
-                    // Картка 3: Улов (0)
-                    _buildStep3Catch(),
+                    // Картка 3: Спорядження
+                    TackleStep(
+                      selectedTackle: _selectedTackle,
+                      onTackleToggle: _toggleTackle,
+                      onAddTackle: _onAddTackle,
+                      tackles: tackles.allTackles,
+                    ),
                     const SizedBox(height: 16),
 
-                    // Картка 4: Нотатки
-                    _buildStep4Notes(),
+                    // Картка 4: Улов
+                    CatchStep(
+                      catchItems: _catchItems,
+                      onAddFish: _addFish,
+                      onRemoveFish: _removeFish,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Картка 5: Нотатки
+                    NotesStep(
+                      notesCtrl: _notesCtrl,
+                    ),
                   ],
                 ),
               ),
@@ -229,36 +425,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
                 child: SizedBox(
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      final date = _parseDate(_dateCtrl.text);
-                      final start = _startTimeCtrl.text.trim();
-                      final end = _endTimeCtrl.text.trim();
-                      final trip = Trip(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        waterBodyName: _selectedWaterBody,
-                        location: _selectedWaterBody,
-                        date: date,
-                        startTime: start,
-                        endTime: end,
-                        duration: _computeDuration(start, end),
-                        temperature: _temperatureCtrl.text.trim(),
-                        weather: _selectedWeather,
-                        wind: _windCtrl.text.trim(),
-                        pressure: _pressureCtrl.text.trim(),
-                        imageUrl:
-                            'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80',
-                        tackle: _selectedTackle.toList(),
-                        catchItems: const [],
-                        notes: _notesCtrl.text.trim(),
-                      );
-                      context.read<TripsProvider>().addTrip(trip);
-                      showAppSnackBar(
-                        context,
-                        message: 'Виїзд успішно збережено!',
-                        isError: false,
-                      );
-                      Navigator.pop(context);
-                    },
+                    onPressed: _saveTrip,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryTeal,
                       foregroundColor: Colors.white,
@@ -268,8 +435,8 @@ class _AddTripScreenState extends State<AddTripScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.set_meal_outlined, size: 20),
-                    label: const Text(
-                      'Зберегти виїзд',
+                    label: Text(
+                      widget.trip != null ? 'Зберегти зміни' : 'Зберегти виїзд',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -282,757 +449,6 @@ class _AddTripScreenState extends State<AddTripScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  // --- КРОК 1: ОСНОВНА ІНФОРМАЦІЯ ---
-  Widget _buildStep1BasicInfo() {
-    return _buildSectionCard(
-      stepNumber: '1',
-      title: 'Основна інформація',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildFieldLabel('Водойма'),
-          _buildDropdownBox(
-            value: _selectedWaterBody,
-            items: const [
-              'Дніпровська затока',
-              'Озеро Біле',
-              'Річка Десна',
-              'Київське водосховище',
-            ],
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedWaterBody = val);
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Кнопка "+ Нова водойма"
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: TextButton.icon(
-              onPressed: () => showWaterBodyFormSheet(context),
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.lightTealBg,
-                foregroundColor: AppColors.primaryTeal,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text(
-                'Нова водойма',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          _buildFieldLabel('Дата'),
-          _buildInputField(controller: _dateCtrl, hintText: '24.05.2026', maxLength: 10),
-          const SizedBox(height: 16),
-
-          _buildFieldLabel('Час початку'),
-          _buildInputField(controller: _startTimeCtrl, hintText: '06:00', maxLength: 5),
-          const SizedBox(height: 16),
-
-          _buildFieldLabel('Час завершення'),
-          _buildInputField(controller: _endTimeCtrl, hintText: '12:00', maxLength: 5),
-          const SizedBox(height: 16),
-
-          // Плашка Тривалість
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEEF3F1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.access_time, color: AppColors.primaryTeal, size: 20),
-                SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Тривалість',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      '6 год 0 хв',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- КРОК 2: ПОГОДА ТА СПОРЯДЖЕННЯ ---
-  Widget _buildStep2WeatherAndTackle() {
-    return _buildSectionCard(
-      stepNumber: '2',
-      title: 'Погода та спорядження',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildFieldLabel('Температура'),
-          _buildInputField(
-            controller: _temperatureCtrl,
-            prefixIcon: Icons.wb_sunny_outlined,
-          ),
-          const SizedBox(height: 16),
-
-          _buildFieldLabel('Умови'),
-          _buildDropdownBox(
-            value: _selectedWeather,
-            items: const ['Сонячно', 'Хмарно', 'Дощ', 'Вітряно', 'Туман'],
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedWeather = val);
-            },
-          ),
-          const SizedBox(height: 16),
-
-          _buildFieldLabel('Вітер'),
-          _buildInputField(controller: _windCtrl, prefixIcon: Icons.air),
-          const SizedBox(height: 16),
-
-          _buildFieldLabel('Тиск'),
-          _buildInputField(controller: _pressureCtrl),
-          const SizedBox(height: 22),
-
-          // Заголовок Снасті + лічильник вибраних + кнопка "+ Нова снасть"
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Снасті',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightTealBg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check,
-                          size: 14,
-                          color: AppColors.primaryTeal,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_selectedTackle.length} вибрано',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryTeal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => showTackleFormSheet(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primaryTeal,
-                      side: const BorderSide(
-                        color: AppColors.primaryTeal,
-                        width: 1,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add, size: 15),
-                    label: const Text(
-                      'Нова снасть',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Категорії снастей
-          _buildTackleCategoryHeader(
-            icon: Icons.set_meal_outlined,
-            color: AppColors.primaryTeal,
-            title: 'ВУДКА',
-          ),
-          _buildTackleChip('Спінінг Favorite X1 2.1м'),
-          _buildTackleChip('Brain Apex Feeder 3.6м'),
-          const SizedBox(height: 12),
-
-          _buildTackleCategoryHeader(
-            icon: Icons.wb_sunny_outlined,
-            color: AppColors.accentGreen,
-            title: 'КОТУШКА',
-          ),
-          _buildTackleChip('Shimano Nasci C3000'),
-          const SizedBox(height: 12),
-
-          _buildTackleCategoryHeader(
-            icon: Icons.set_meal_outlined,
-            color: AppColors.accentAmber,
-            title: 'ПРИМАНКА',
-          ),
-          _buildTackleChip('Lucky John Tioga 3.5" Pearl'),
-          _buildTackleChip('Воблер Rapala X-Rap 10'),
-          const SizedBox(height: 12),
-
-          _buildTackleCategoryHeader(
-            icon: Icons.water_drop_outlined,
-            color: const Color(0xFF5E4B8B),
-            title: 'НАЖИВКА',
-          ),
-          _buildTackleChip('Helicopter Rig з кукурудзою'),
-          _buildTackleChip("Черв'як дощовий"),
-        ],
-      ),
-    );
-  }
-
-  // --- КРОК 3: УЛОВ (0) ---
-  Widget _buildStep3Catch() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder, width: 1.2),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  _buildStepBadge('3'),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Улов (0)',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              TextButton.icon(
-                onPressed: () => _showPickFishPhotoDialog(context),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.lightTealBg,
-                  foregroundColor: AppColors.primaryTeal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  'Додати рибу',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          // Порожній стан улову
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F8F6),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.cardBorder, width: 1.2),
-            ),
-            child: const Column(
-              children: [
-                Icon(
-                  Icons.set_meal_outlined,
-                  color: AppColors.primaryTeal,
-                  size: 32,
-                ),
-                SizedBox(height: 10),
-                Text(
-                  'Ще немає улову',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryTeal,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Натисніть «Додати рибу», щоб записати перший улов',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- КРОК 4: НОТАТКИ ---
-  Widget _buildStep4Notes() {
-    return _buildSectionCard(
-      stepNumber: '4',
-      title: 'Нотатки',
-      child: TextFormField(
-        controller: _notesCtrl,
-        maxLines: 4,
-        inputFormatters: [LengthLimitingTextInputFormatter(500)],
-        decoration: InputDecoration(
-          hintText: "Де клювало, на що, що варто пам'ятати наступного разу...",
-          hintStyle: const TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.all(16),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: AppColors.cardBorder,
-              width: 1.2,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: AppColors.primaryTeal,
-              width: 1.5,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- ДОПОМІЖНІ ЕЛЕМЕНТИ ФОРМИ ---
-  Widget _buildSectionCard({
-    required String stepNumber,
-    required String title,
-    required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder, width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _buildStepBadge(stepNumber),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepBadge(String number) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: AppColors.lightTealBg,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        number,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: AppColors.primaryTeal,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFieldLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    String? initialValue,
-    TextEditingController? controller,
-    String? hintText,
-    IconData? prefixIcon,
-    int maxLength = 100,
-  }) {
-    return TextFormField(
-      controller: controller,
-      initialValue: initialValue,
-      inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
-      ),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary,
-        ),
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, color: AppColors.textSecondary, size: 20)
-            : null,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.cardBorder, width: 1.2),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.primaryTeal,
-            width: 1.5,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdownBox({
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder, width: 1.2),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            color: AppColors.textSecondary,
-          ),
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-          items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTackleCategoryHeader({
-    required IconData icon,
-    required Color color,
-    required String title,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 6),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: color,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTackleChip(String label) {
-    final bool isSelected = _selectedTackle.contains(label);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: () => _toggleTackle(label),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.lightTealBg : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? AppColors.primaryTeal : AppColors.cardBorder,
-              width: 1.2,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSelected) ...[
-                const Icon(Icons.check, size: 16, color: AppColors.primaryTeal),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? AppColors.primaryTeal
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- МОДАЛЬНЕ ВІКНО "ВИБРАТИ ФОТО РИБИ" (ЗГІДНО З МАКЕТОМ FIGMA) ---
-  void _showPickFishPhotoDialog(BuildContext context) {
-    // Demo photos for fish (using the same Unsplash photos as placeholder)
-    const List<String> _demoFishPhotos = [
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
-    ];
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.65),
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Вибрати фото риби',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Виберіть з демо-галереї або підключіть камеру',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () {
-                          // In a real app, we would handle camera capture here.
-                          // For now, we just close the dialog.
-                          Navigator.pop(ctx);
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: AppColors.lightTealBg,
-                          foregroundColor: AppColors.primaryTeal,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                        label: const Text(
-                          'Камера',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () {
-                          // For demo, we select the first fish photo.
-                          // In a real app, we would return the selected image.
-                          Navigator.pop(ctx);
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: AppColors.lightTealBg,
-                          foregroundColor: AppColors.primaryTeal,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.image_outlined, size: 18),
-                        label: const Text(
-                          'Галерея',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _demoFishPhotos.map((url) {
-                    return GestureDetector(
-                      onTap: () {
-                        // In a real app, we would return the selected image.
-                        Navigator.pop(ctx);
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
-                          url,
-                          width: 82,
-                          height: 82,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 82,
-                            height: 82,
-                            color: Colors.grey[300],
-                            alignment: Alignment.center,
-                            child: Icon(
-                              Icons.image,
-                              size: 28,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 18),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      'Скасувати',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryTeal,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

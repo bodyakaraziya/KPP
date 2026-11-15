@@ -4,11 +4,31 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_fab.dart';
 import '../../../core/widgets/tackle_card.dart';
+import '../../trips/widgets/trip_form_helpers.dart';
 import '../providers/tackle_provider.dart';
-import 'tackle_detail_screen.dart';
+import '../widgets/tackle_category_filters.dart';
 
-class TackleScreen extends StatelessWidget {
+class TackleScreen extends StatefulWidget {
   const TackleScreen({super.key});
+
+  @override
+  State<TackleScreen> createState() => _TackleScreenState();
+}
+
+class _TackleScreenState extends State<TackleScreen> {
+  late final TextEditingController _searchCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,13 +96,23 @@ class TackleScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // 2. Фільтри категорій з лічильниками
-                _buildCategoryFilters(context, provider),
+                TackleCategoryFilters(provider: provider),
                 const SizedBox(height: 18),
+
+                // 3. Пошук снасті за назвою
+                TripFieldLabel(label: 'Пошук снасті'),
+                TripInputField(
+                  controller: _searchCtrl,
+                  hintText: 'Назва або модель снасті',
+                  onChanged: (val) =>
+                      context.read<TackleProvider>().setSearchQuery(val),
+                ),
+                const SizedBox(height: 20),
 
                 const Divider(color: AppColors.cardBorder, height: 1),
                 const SizedBox(height: 20),
 
-                // 3. Заголовок "Мій арсенал [N]"
+                // 4. Заголовок "Мій арсенал [N]"
                 Row(
                   children: [
                     const Text(
@@ -116,12 +146,12 @@ class TackleScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // 4. Список карток снастей (даних з TackleProvider)
+                // 5. Список карток снастей (даних з TackleProvider)
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: tackles.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  separatorBuilder: (_, _) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final t = tackles[index];
                     return TackleCard(
@@ -129,19 +159,17 @@ class TackleScreen extends StatelessWidget {
                       name: t.name,
                       notes: t.notes,
                       tripsCount: '${t.tripsCount} виїздів',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TackleDetailScreen(
-                              category: t.category,
-                              name: t.name,
-                              notes: t.notes,
-                              tripsCount: '${t.tripsCount} виїздів',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => showTackleFormSheet(
+                        context,
+                        isEditing: true,
+                        id: t.id,
+                        initialTripsCount: t.tripsCount,
+                        onSave: (updated) =>
+                            context.read<TackleProvider>().updateTackle(t.id, updated),
+                        initialCategory: t.category,
+                        initialName: t.name,
+                        initialNotes: t.notes,
+                      ),
                       onEdit: () => showTackleFormSheet(
                         context,
                         isEditing: true,
@@ -170,139 +198,33 @@ class TackleScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Снасті',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Ваше спорядження\nзавжди під рукою',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-        ),
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 10),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.syncDotGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'Синхронізовано',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+            Text(
+              'Снасті',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Ваше спорядження завжди під рукою',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.35,
+              ),
             ),
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildCategoryFilters(BuildContext context, TackleProvider provider) {
-    final labels = ['Усі', ...provider.categories];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: labels.map((label) {
-        final bool isSelected = provider.filterCategory == label;
-        final int count = label == 'Усі'
-            ? provider.tackles.length
-            : provider.tackles.where((t) => t.category == label).length;
-
-        return InkWell(
-          onTap: () => provider.setFilterCategory(
-            label == 'Усі' ? null : label,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.lightTealBg
-                  : Colors.white.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSelected
-                    ? AppColors.primaryTeal
-                    : AppColors.cardBorder,
-                width: 1.2,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected
-                        ? AppColors.primaryTeal
-                        : AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primaryTeal
-                        : const Color(0xFFE4ECE9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$count',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected
-                          ? Colors.white
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }

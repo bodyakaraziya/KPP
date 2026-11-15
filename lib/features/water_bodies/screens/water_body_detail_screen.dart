@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/water_body_card.dart';
+import '../providers/water_bodies_provider.dart';
 
+/// Детальний перегляд однієї водойми з можливістю редагування та видалення.
 class WaterBodyDetailScreen extends StatelessWidget {
-  final String name;
-  final String type;
-  final String location;
-  final String notes;
-  final String imageUrl;
+  final String id;
 
-  const WaterBodyDetailScreen({
-    super.key,
-    this.name = 'Річка Стугна',
-    this.type = 'Річка',
-    this.location = 'Київська обл., Обухівський р-н',
-    this.notes = 'Тиха річка. Плотва та краснопірка.',
-    this.imageUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80',
-  });
+  const WaterBodyDetailScreen({super.key, required this.id});
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<WaterBodiesProvider>();
+    final matches = provider.allWaterBodies.where((w) => w.id == id).toList();
+    final body = matches.isEmpty ? null : matches.first;
+    if (body == null) {
+      // Водойму видалено — повертаємося до списку.
+      WidgetsBinding.instance.addPostFrameCallback((_) => Navigator.pop(context));
+      return const SizedBox.shrink();
+    }
+
     return Scaffold(
       backgroundColor: AppColors.backgroundBottom,
       body: Container(
@@ -38,7 +39,6 @@ class WaterBodyDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Назад до списку водойм
                 InkWell(
                   onTap: () => Navigator.pop(context),
                   borderRadius: BorderRadius.circular(8),
@@ -71,7 +71,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: Image.network(
-                    imageUrl,
+                    body.imageUrl,
                     height: 220,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -99,7 +99,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            type.toUpperCase(),
+                            body.type.toUpperCase(),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -109,7 +109,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            name,
+                            body.name,
                             style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
@@ -125,17 +125,31 @@ class WaterBodyDetailScreen extends StatelessWidget {
                           onPressed: () => showWaterBodyFormSheet(
                             context,
                             isEditing: true,
-                            initialName: name,
-                            initialType: type,
-                            initialLocation: location,
-                            initialNotes: notes,
-                            initialImageUrl: imageUrl,
+                            id: id,
+                            initialTripsCount: body.tripsCount,
+                            onSave: (updated) =>
+                                context
+                                    .read<WaterBodiesProvider>()
+                                    .updateWaterBody(id, updated),
+                            initialName: body.name,
+                            initialType: body.type,
+                            initialLocation: body.location,
+                            initialNotes: body.notes,
+                            initialImageUrl: body.imageUrl,
                           ),
                           icon: const Icon(Icons.edit_outlined),
                         ),
                         const SizedBox(width: 8),
                         IconButton.filledTonal(
-                          onPressed: () => showDeleteWaterBodyDialog(context),
+                          onPressed: () => showDeleteWaterBodyDialog(
+                            context,
+                            onDelete: () {
+                              context
+                                  .read<WaterBodiesProvider>()
+                                  .deleteWaterBody(id);
+                              Navigator.pop(context);
+                            },
+                          ),
                           style: IconButton.styleFrom(
                             backgroundColor: const Color(0xFFFCEEEE),
                             foregroundColor: const Color(0xFFB3261E),
@@ -170,7 +184,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              location,
+                              body.location,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -194,7 +208,7 @@ class WaterBodyDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        notes,
+                        body.notes,
                         style: const TextStyle(
                           fontSize: 15,
                           color: AppColors.textPrimary,

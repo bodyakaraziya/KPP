@@ -9,6 +9,8 @@ class WaterBodiesProvider extends ChangeNotifier {
   String? _filterType;
 
   List<WaterBody> get waterBodies => _applyFilter();
+  List<WaterBody> get allWaterBodies => List.unmodifiable(_waterBodies);
+  int get totalCount => _waterBodies.length;
   String? get filterType => _filterType;
 
   /// Унікальні типи водойм для фільтра.
@@ -39,7 +41,34 @@ class WaterBodiesProvider extends ChangeNotifier {
 
   void deleteWaterBody(String id) {
     _waterBodies.removeWhere((w) => w.id == id);
+    if (_filterType != null && _filterType!.isNotEmpty) {
+      if (!_waterBodies.any((w) => w.type == _filterType)) {
+        _filterType = null;
+      }
+    }
     notifyListeners();
+  }
+
+  /// Збільшує лічильник виїздів для водойми з таким ім'ям.
+  void incrementTripsCount(String waterBodyName) {
+    final index = _waterBodies.indexWhere((w) => w.name == waterBodyName);
+    if (index != -1) {
+      _waterBodies[index] = _waterBodies[index].copyWith(
+        tripsCount: _waterBodies[index].tripsCount + 1,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Зменшує лічильник виїздів для водойми з таким ім'ям (не нижче за 0).
+  void decrementTripsCount(String waterBodyName) {
+    final index = _waterBodies.indexWhere((w) => w.name == waterBodyName);
+    if (index != -1) {
+      _waterBodies[index] = _waterBodies[index].copyWith(
+        tripsCount: (_waterBodies[index].tripsCount - 1).clamp(0, 100000),
+      );
+      notifyListeners();
+    }
   }
 
   void setFilterType(String? value) {

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../../core/models/catch_item.dart';
 import '../../../core/models/trip.dart';
@@ -8,11 +8,24 @@ import '../../../core/models/trip.dart';
 class TripsProvider extends ChangeNotifier {
   final List<Trip> _trips = [];
   String? _filterWaterBody;
+  String? _filterPeriod; // 'За весь час' | 'За тиждень' | 'За місяць' | 'За рік'
+  String? _filterFishType;
+  DateTimeRange? _customDateRange; // кастомний період через календар
   String? _sortBy; // 'date' | 'location' | 'fish' | null
   bool _ascending = true;
 
   List<Trip> get trips => _applyFilterAndSort();
   String? get filterWaterBody => _filterWaterBody;
+  String? get filterPeriod => _filterPeriod;
+  String? get filterFishType => _filterFishType;
+  DateTimeRange? get customDateRange => _customDateRange;
+
+  /// Унікальні види риби для фільтра.
+  List<String> get fishTypes {
+    final types = _trips.expand((t) => t.catchItems.map((c) => c.fishName)).toSet().toList()..sort();
+    return types;
+  }
+
   String? get sortBy => _sortBy;
   bool get ascending => _ascending;
 
@@ -48,11 +61,41 @@ class TripsProvider extends ChangeNotifier {
   /// Видалити виїзд за id.
   void deleteTrip(String id) {
     _trips.removeWhere((t) => t.id == id);
+    if (_filterWaterBody != null && _filterWaterBody!.isNotEmpty) {
+      if (!_trips.any((t) => t.waterBodyName == _filterWaterBody)) {
+        _filterWaterBody = null;
+      }
+    }
+    if (_filterFishType != null && _filterFishType!.isNotEmpty && _filterFishType != 'Усі види') {
+      if (!_trips.any((t) => t.catchItems.any((c) => c.fishName == _filterFishType))) {
+        _filterFishType = null;
+      }
+    }
+    if (_customDateRange != null) {
+      if (!_trips.any((t) => !t.date.isBefore(_customDateRange!.start) && !t.date.isAfter(_customDateRange!.end))) {
+        _customDateRange = null;
+      }
+    }
     notifyListeners();
   }
 
   void setFilterWaterBody(String? value) {
     _filterWaterBody = value;
+    notifyListeners();
+  }
+
+  void setFilterPeriod(String? value) {
+    _filterPeriod = value;
+    notifyListeners();
+  }
+
+  void setFilterFishType(String? value) {
+    _filterFishType = value;
+    notifyListeners();
+  }
+
+  void setCustomDateRange(DateTimeRange? value) {
+    _customDateRange = value;
     notifyListeners();
   }
 
@@ -66,6 +109,31 @@ class TripsProvider extends ChangeNotifier {
     var result = _trips.where((t) {
       if (_filterWaterBody == null || _filterWaterBody!.isEmpty) return true;
       return t.waterBodyName == _filterWaterBody;
+    }).where((t) {
+      if (_filterPeriod == null || _filterPeriod!.isEmpty || _filterPeriod == 'За весь час') return true;
+      final now = DateTime.now();
+      DateTime cutoff;
+      switch (_filterPeriod) {
+        case 'За тиждень':
+          cutoff = now.subtract(const Duration(days: 7));
+          break;
+        case 'За місяць':
+          cutoff = now.subtract(const Duration(days: 30));
+          break;
+        case 'За рік':
+          cutoff = now.subtract(const Duration(days: 365));
+          break;
+        default:
+          return true;
+      }
+      return t.date.isAfter(cutoff);
+    }).where((t) {
+      if (_filterFishType == null || _filterFishType!.isEmpty || _filterFishType == 'Усі види') return true;
+      return t.catchItems.any((c) => c.fishName == _filterFishType);
+    }).where((t) {
+      if (_customDateRange == null) return true;
+      return !t.date.isBefore(_customDateRange!.start) &&
+          !t.date.isAfter(_customDateRange!.end);
     }).toList();
 
     if (_sortBy != null) {

@@ -44,6 +44,25 @@ class PhoneDigitsFormatter extends TextInputFormatter {
   }
 }
 
+/// Відформатований вигляд мобільного номера для читання:
+/// `+380 551234567` → `+380 (55) 123-45-67`.
+///
+/// Пара `+380` відображається окрамі, а дев'ять цифр номера групуються
+/// за українським зразком: (код оператора) три дві дві. Якщо номер
+/// порожній або не виглядає як дев'ять цифр — повертається вхідний рядок
+/// (або «Не вказано» для порожнього).
+String formatPhoneForDisplay(String phone) {
+  final digits = phone.replaceAll(RegExp(r'\D'), '');
+  final local = digits.startsWith('380') && digits.length == 12
+      ? digits.substring(3)
+      : digits;
+  if (local.length != 9) {
+    return phone.trim().isEmpty ? 'Не вказано' : phone;
+  }
+  return '+380 (${local.substring(0, 2)}) '
+      '${local.substring(2, 5)}-${local.substring(5, 7)}-${local.substring(7, 9)}';
+}
+
 class PersonalDataCard extends StatelessWidget {
   final String name;
   final String email;
@@ -234,7 +253,7 @@ class PersonalDataCard extends StatelessWidget {
         const Divider(color: Color(0xFFEEF3F1), height: 24),
         _buildInfoRow(
           Icons.phone_outlined,
-          phone.isNotEmpty ? phone : 'Не вказано',
+          formatPhoneForDisplay(phone),
         ),
         const Divider(color: Color(0xFFEEF3F1), height: 24),
         const SizedBox(height: 20),

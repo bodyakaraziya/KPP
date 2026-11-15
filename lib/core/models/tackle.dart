@@ -29,4 +29,20 @@ class Tackle {
         notes: json['notes'] as String,
         tripsCount: json['tripsCount'] as int? ?? 0,
       );
+
+  Tackle copyWith({
+    String? id,
+    String? category,
+    String? name,
+    String? notes,
+    int? tripsCount,
+  }) {
+    return Tackle(
+      id: id ?? this.id,
+      category: category ?? this.category,
+      name: name ?? this.name,
+      notes: notes ?? this.notes,
+      tripsCount: tripsCount ?? this.tripsCount,
+    );
+  }
 }

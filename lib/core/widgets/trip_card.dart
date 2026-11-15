@@ -207,7 +207,7 @@ class TripCard extends StatelessWidget {
 }
 
 /// Модальне вікно підтвердження видалення виїзду (відповідно до макета Figma)
-Future<void> showDeleteTripDialog(BuildContext context) {
+Future<void> showDeleteTripDialog(BuildContext context, {VoidCallback? onDelete}) {
   return showDialog(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.65),
@@ -264,6 +264,7 @@ Future<void> showDeleteTripDialog(BuildContext context) {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
+                      onDelete?.call();
                       showAppSnackBar(
                         context,
                         message: 'Виїзд видалено',

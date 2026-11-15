@@ -175,6 +175,9 @@ class AuthRepository {
   /// Перевіряє, чи Email вже пов'язаний з якимсь обліковим записом Firebase.
   Future<bool> isEmailTaken(String email) async {
     try {
+      // Firebase клієнтський SDK немає заміни для fetchSignInMethodsForEmail,
+      // тому залишаємо перевірку наявності email у Firebase Auth.
+      // ignore: deprecated_member_use
       final methods = await _firebaseAuth.fetchSignInMethodsForEmail(email);
       return methods.isNotEmpty;
     } on FirebaseAuthException catch (e) {

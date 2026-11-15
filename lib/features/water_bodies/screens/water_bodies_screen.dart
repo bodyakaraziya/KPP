@@ -5,7 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_fab.dart';
 import '../../../core/widgets/water_body_card.dart';
 import '../providers/water_bodies_provider.dart';
-import 'water_body_detail_screen.dart';
+import '../widgets/water_body_type_filter.dart';
 
 class WaterBodiesScreen extends StatelessWidget {
   const WaterBodiesScreen({super.key});
@@ -70,12 +70,12 @@ class WaterBodiesScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Фільтр за типом водойми
-                _buildTypeFilter(context, provider),
+                WaterBodyTypeFilter(provider: provider),
                 const SizedBox(height: 20),
 
                 // Лічильник записів
                 Text(
-                  '${waterBodies.length} записів',
+                  '${provider.totalCount} записів',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -89,7 +89,7 @@ class WaterBodiesScreen extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: waterBodies.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  separatorBuilder: (_, _) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final wb = waterBodies[index];
                     return WaterBodyCard(
@@ -97,20 +97,21 @@ class WaterBodiesScreen extends StatelessWidget {
                       type: wb.type,
                       name: wb.name,
                       subtitle: '${wb.location} · ${wb.tripsCount} виїздів',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => WaterBodyDetailScreen(
-                              name: wb.name,
-                              type: wb.type,
-                              location: wb.location,
-                              notes: wb.notes,
-                              imageUrl: wb.imageUrl,
-                            ),
+                      onTap: () => showWaterBodyFormSheet(
+                            context,
+                            isEditing: true,
+                            id: wb.id,
+                            initialTripsCount: wb.tripsCount,
+                            onSave: (updated) =>
+                                context
+                                    .read<WaterBodiesProvider>()
+                                    .updateWaterBody(wb.id, updated),
+                            initialName: wb.name,
+                            initialType: wb.type,
+                            initialLocation: wb.location,
+                            initialNotes: wb.notes,
+                            initialImageUrl: wb.imageUrl,
                           ),
-                        );
-                      },
                       onEdit: () => showWaterBodyFormSheet(
                         context,
                         isEditing: true,
@@ -151,111 +152,25 @@ class WaterBodiesScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Водойми',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Місця, куди хочеться\nповертатися',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            const SizedBox(height: 10),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.syncDotGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'Синхронізовано',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTypeFilter(BuildContext context, WaterBodiesProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Фільтр за типом',
+        Text(
+          'Водойми',
           style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.cardBorder, width: 1.2),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: provider.filterType ?? 'Усі типи',
-              isExpanded: true,
-              items: ['Усі типи', ...provider.types]
-                  .map((item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(item),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                provider.setFilterType(val == 'Усі типи' ? null : val);
-              },
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-              icon: const Icon(
-                Icons.keyboard_arrow_down,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
+        SizedBox(height: 6),
+        Text(
+          'Місця, куди хочеться повертатися',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.35,
           ),
         ),
       ],
