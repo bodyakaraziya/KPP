@@ -20,7 +20,6 @@ class _WaterBodiesScreenState extends State<WaterBodiesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Водойми беруться з WaterBodiesProvider (лаба №5, завдання 3.3–3.4).
     final provider = context.watch<WaterBodiesProvider>();
     final waterBodies = provider.filterWaterBodies(type: _filterType);
 
