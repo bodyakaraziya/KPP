@@ -202,6 +202,7 @@ class _WaterBodyFormSheetContentState
 
 
   final List<String> _waterTypes = const [
+    'Море',
     'Озеро',
     'Річка',
     'Річкова затока',

@@ -12,12 +12,15 @@ class CatchStep extends StatefulWidget {
   final List<CatchItem> catchItems;
   final VoidCallback onAddFish;
   final ValueChanged<int> onRemoveFish;
+  /// Редагувати існуючу позицію улову за індексом.
+  final ValueChanged<int>? onEditFish;
 
   const CatchStep({
     super.key,
     required this.catchItems,
     required this.onAddFish,
     required this.onRemoveFish,
+    this.onEditFish,
   });
 
   @override
@@ -185,47 +188,27 @@ class _CatchStepState extends State<CatchStep> {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox.fromSize(
-              size: const Size(56, 56),
-              child: item.imageUrl.isNotEmpty
-                  ? Image.network(
-                      item.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _fishPhotoPlaceholder(),
-                    )
-                  : _fishPhotoPlaceholder(),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.fishName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  [
-                    if (item.weight.isNotEmpty) CatchItem.formatWeight(item.weight),
-                    if (item.length.isNotEmpty) '${item.length} см',
-                    if (item.time.isNotEmpty) item.time,
-                  ].join(' · '),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+            child: widget.onEditFish != null
+                ? GestureDetector(
+                    onTap: () => widget.onEditFish!(index),
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildCatchItemContent(context, item),
+                  )
+                : _buildCatchItemContent(context, item),
           ),
+          if (widget.onEditFish != null)
+            IconButton(
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: AppColors.primaryTeal,
+                size: 20,
+              ),
+              color: Colors.transparent,
+              onPressed: () => widget.onEditFish!(index),
+              tooltip: 'Редагувати улов',
+              visualDensity: VisualDensity.compact,
+            ),
           IconButton(
             icon: const Icon(
               Icons.delete_outline,
@@ -241,6 +224,54 @@ class _CatchStepState extends State<CatchStep> {
     );
   }
 
+  Widget _buildCatchItemContent(BuildContext context, CatchItem item) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox.fromSize(
+            size: const Size(56, 56),
+            child: item.imageUrl.isNotEmpty
+                ? Image.network(
+                    item.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _fishPhotoPlaceholder(),
+                  )
+                : _fishPhotoPlaceholder(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.fishName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                [
+                  if (item.weight.isNotEmpty) CatchItem.formatWeight(item.weight),
+                  if (item.length.isNotEmpty) '${item.length} см',
+                  if (item.time.isNotEmpty) item.time,
+                ].join(' · '),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _fishPhotoPlaceholder() => Container(
         color: AppColors.lightTealBg,
         child: const Icon(
@@ -251,11 +282,15 @@ class _CatchStepState extends State<CatchStep> {
       );
 }
 
-/// Діалог додавання однієї позиції улову.
+/// Діалог створення або редагування однієї позиції улову.
 /// Оформлено аналогічно формі додавання снасті: підпис окремо від поля,
-/// фото зверху, кнопки «Додати улов» / «Скасувати» підійшли вертикально.
+/// фото зверху, кнопки «Зберегти» / «Скасувати» підійшли вертикально.
+/// Коли передано [item], форма відкривається в режимі редагування з
+/// попередньо заповненими даними цієї позиції.
 class FishItemFormDialog extends StatefulWidget {
   final String? initialImageUrl;
+  /// Існуюча позиція улову для редагування. Якщо null — форма створення нового улову.
+  final CatchItem? item;
   /// Час початку виїзду (HH:MM) — межа для валідації часу лову.
   final String startTime;
   /// Час кінця виїзду (HH:MM) — межа для валідації часу лову.
@@ -264,6 +299,7 @@ class FishItemFormDialog extends StatefulWidget {
   const FishItemFormDialog({
     super.key,
     this.initialImageUrl,
+    this.item,
     required this.startTime,
     required this.endTime,
   });
@@ -282,11 +318,12 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController();
-    _weightCtrl = TextEditingController();
-    _lengthCtrl = TextEditingController();
-    _timeCtrl = TextEditingController();
-    _imageUrl = widget.initialImageUrl;
+    final item = widget.item;
+    _nameCtrl = TextEditingController(text: item?.fishName ?? '');
+    _weightCtrl = TextEditingController(text: item?.weight ?? '');
+    _lengthCtrl = TextEditingController(text: item?.length ?? '');
+    _timeCtrl = TextEditingController(text: item?.time ?? '');
+    _imageUrl = item?.imageUrl ?? widget.initialImageUrl;
   }
 
   /// Перетворює рядок часу HH:MM на хвилини від півночі (або null, якщо невірний формат).
@@ -405,6 +442,7 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
     final bottomInset = media.viewInsets.bottom > media.viewPadding.bottom
         ? media.viewInsets.bottom
         : media.viewPadding.bottom;
+    final bool isEditing = widget.item != null;
     return Container(
       margin: const EdgeInsets.only(top: 32),
       padding: EdgeInsets.fromLTRB(22, 12, 22, bottomInset),
@@ -435,7 +473,7 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Додати рибу до улову',
+                  isEditing ? 'Редагувати улов' : 'Додати рибу до улову',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
@@ -456,7 +494,7 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               'Заповніть дані про улов',
               textAlign: TextAlign.center,
@@ -465,22 +503,21 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
 
             // Фото риби — зверху, як у інших формах
             _buildLabel('Фото риби'),
-            const SizedBox(height: 8),
             GestureDetector(
               onTap: _pickPhoto,
               child: Container(
-                height: 150,
+                height: 140,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3F8F6),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.cardBorder, width: 1.2),
                 ),
-                child: _imageUrl != null
+                child: (_imageUrl ?? '').isNotEmpty
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(18),
                         child: Stack(
@@ -523,7 +560,7 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
                     : _photoPlaceholder(),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
 
             // Поле: Назва риби
             _buildLabel('Назва риби'),
@@ -585,10 +622,10 @@ class _FishItemFormDialogState extends State<FishItemFormDialog> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  'Додати улов',
-                  style: TextStyle(
+                icon: Icon(isEditing ? Icons.save : Icons.add, size: 18),
+                label: Text(
+                  isEditing ? 'Зберегти зміни' : 'Додати улов',
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),

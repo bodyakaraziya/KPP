@@ -278,6 +278,25 @@ class _AddTripScreenState extends State<AddTripScreen> {
     setState(() => _catchItems.removeAt(index));
   }
 
+  /// Редагувати існуючу позицію улову: відкривається та сама форма, що й для
+  /// створення улову, але попередньо заповнена даними обраної позиції.
+  Future<void> _editFish(int index) async {
+    final item = await showModalBottomSheet<CatchItem?>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => FishItemFormDialog(
+        item: _catchItems[index],
+        startTime: _startTimeCtrl.text.trim(),
+        endTime: _endTimeCtrl.text.trim(),
+      ),
+    );
+    if (mounted && item != null) {
+      setState(() => _catchItems[index] = item);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final waterBodies = context.watch<WaterBodiesProvider>();
@@ -407,6 +426,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
                       catchItems: _catchItems,
                       onAddFish: _addFish,
                       onRemoveFish: _removeFish,
+                      onEditFish: _editFish,
                     ),
                     const SizedBox(height: 16),
 
