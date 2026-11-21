@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/user_profile.dart';
+import '../../../core/utils/validators.dart';
 import '../repositories/auth_repository.dart';
 
 /// Управляє станом автентифікації та профілю користувача (лаба №5, завдання 3.1–3.2).
@@ -98,8 +99,17 @@ class AuthProvider extends ChangeNotifier {
     _setError(null);
     try {
       await _repository.signIn(email: email, password: password);
+
+      final user = _repository.currentUser;
+      if (user != null && !user.emailVerified) {
+        await _repository.signOut();
+        _setError(
+          'Пошту не підтверджено. Будь ласка, перевірте поштову скриньку та '
+          'підтвердьте адресу електронної пошти перед входом.',
+        );
+      }
     } catch (e) {
-      _setError(e.toString());
+      _setError(authErrorMessage(e));
     } finally {
       _setLoading(false);
     }
@@ -120,7 +130,20 @@ class AuthProvider extends ChangeNotifier {
         displayName: displayName,
       );
     } catch (e) {
-      _setError(e.toString());
+      _setError(authErrorMessage(e));
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Надсилає лист із посиланням для підтвердження адреси електронної пошти.
+  Future<void> sendEmailVerification() async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _repository.sendEmailVerification();
+    } catch (e) {
+      _setError(authErrorMessage(e));
     } finally {
       _setLoading(false);
     }
@@ -132,7 +155,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _repository.signOut();
     } catch (e) {
-      _setError(e.toString());
+      _setError(authErrorMessage(e));
     } finally {
       _setLoading(false);
     }
@@ -157,7 +180,7 @@ class AuthProvider extends ChangeNotifier {
         await _repository.updateProfile(displayName: displayName);
       }
     } catch (e) {
-      _setError(e.toString());
+      _setError(authErrorMessage(e));
     } finally {
       _setLoading(false);
     }
@@ -171,7 +194,7 @@ class AuthProvider extends ChangeNotifier {
       if (_user == null) throw Exception('Користувач не авторизований');
       await _repository.saveProfileAvatar(photoURL);
     } catch (e) {
-      _setError(e.toString());
+      _setError(authErrorMessage(e));
     } finally {
       _setLoading(false);
     }

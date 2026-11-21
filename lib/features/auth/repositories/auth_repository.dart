@@ -97,6 +97,10 @@ class AuthRepository {
 
       if (displayName != null && displayName.isNotEmpty) {
         await credential.user?.updateDisplayName(displayName);
+        await _userProfiles.doc(credential.user!.uid).set({
+          'displayName': displayName,
+          'phone': '',
+        }, SetOptions(merge: true));
       }
 
       return credential;

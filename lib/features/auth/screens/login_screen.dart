@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
@@ -6,15 +7,13 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_background.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/validators.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../main/screens/main_screen.dart';
-import '../repositories/auth_repository.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final AuthRepository? authRepository;
-
-  const LoginScreen({super.key, this.authRepository});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -24,15 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  late final AuthRepository _authRepository;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _authRepository = widget.authRepository ?? AuthRepository();
-  }
 
   @override
   void dispose() {
@@ -46,50 +36,37 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    final auth = context.read<AuthProvider>();
+    await auth.signIn(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
 
-    try {
-      await _authRepository.signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+    if (!mounted) return;
 
-      if (!mounted) return;
-
-      final user = _authRepository.currentUser;
-      if (user != null && !user.emailVerified) {
-        await _authRepository.signOut();
-        if (!mounted) return;
-        showAppSnackBar(
-          context,
-          title: 'Пошту не підтверджено',
-          message:
-              'Будь ласка, перевірте поштову скриньку та підтвердьте адресу електронної пошти перед входом.',
-          isError: true,
-        );
-        return;
-      }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
+    if (auth.error != null) {
       showAppSnackBar(
         context,
         title: 'Помилка авторизації',
-        message: authErrorMessage(e),
+        message: auth.error!,
         isError: true,
       );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      auth.clearError();
+      return;
     }
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isLoading = auth.isLoading;
+
     return AuthBackground(
       child: Form(
         key: _formKey,
@@ -139,15 +116,13 @@ class _LoginScreenState extends State<LoginScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: GestureDetector(
-                onTap: _isLoading
+                onTap: isLoading
                     ? null
                     : () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ForgotPasswordScreen(
-                              authRepository: _authRepository,
-                            ),
+                            builder: (_) => const ForgotPasswordScreen(),
                           ),
                         );
                       },
@@ -166,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 14),
 
-            _isLoading
+            isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
                       color: AppColors.primaryTeal,
@@ -186,15 +161,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: _isLoading
+                  onTap: isLoading
                       ? null
                       : () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => RegisterScreen(
-                                authRepository: _authRepository,
-                              ),
+                              builder: (_) => const RegisterScreen(),
                             ),
                           );
                         },
